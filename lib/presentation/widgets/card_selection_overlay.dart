@@ -170,21 +170,29 @@ class _CardSelectionOverlayState extends State<CardSelectionOverlay>
             ),
           ),
         ),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              AppStrings.cardChooseFrom(widget.targetPlayer.name),
-              style: AppTypography.headlineMedium,
-            ),
-            Text(
-              AppStrings.cardCardsCount(widget.targetPlayer.cardCount),
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  maxLines: 1,
+                  AppStrings.cardChooseFrom(widget.targetPlayer.name),
+                  style: AppTypography.headlineMedium,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
-          ],
+              Text(
+                AppStrings.cardCardsCount(widget.targetPlayer.cardCount),
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );

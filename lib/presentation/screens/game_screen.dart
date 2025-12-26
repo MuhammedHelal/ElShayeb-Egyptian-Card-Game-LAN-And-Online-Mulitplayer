@@ -93,42 +93,38 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          const Spacer(),
-
           // Room code
-          GestureDetector(
-            onTap: () => _copyRoomCode(context, state),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.surface.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppColors.secondary.withOpacity(0.3),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _copyRoomCode(context, state),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.secondary.withOpacity(0.3),
+                  ),
                 ),
-              ),
-              child: Wrap(
-                children: [
-                  const Icon(Icons.vpn_key,
-                      size: 16, color: AppColors.secondary),
-                  const SizedBox(width: 8),
-                  Text(
-                    context.read<GameCubit>().connectionInfo,
-                    style: AppTypography.titleMedium.copyWith(
-                      color: AppColors.secondary,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown, // prevents overflow
+
+                    child: Text(
+                      overflow: TextOverflow.ellipsis,
+                      context.read<GameCubit>().connectionInfo,
+                      style: AppTypography.titleMedium.copyWith(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.copy,
-                      size: 14, color: AppColors.textSecondary),
-                ],
+                ),
               ),
             ),
           ),
-
-          const Spacer(),
 
           // Scoreboard button
           IconButton(
@@ -354,44 +350,44 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           ),
 
         // Turn indicator overlay (only when idle and not animating)
-        if (state.isMyTurn &&
-            state.drawPhase == DrawPhase.idle &&
-            !state.showDealAnimation)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 150,
-            child: Center(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: AppColors.goldGradient,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.secondary.withOpacity(0.5),
-                      blurRadius: 16,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.touch_app, color: AppColors.textDark),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppStrings.gameYourTurn,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+        // if (state.isMyTurn &&
+        //     state.drawPhase == DrawPhase.idle &&
+        //     !state.showDealAnimation)
+        //   Positioned(
+        //     left: 0,
+        //     right: 0,
+        //     bottom: 150,
+        //     child: Center(
+        //       child: Container(
+        //         padding:
+        //             const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        //         decoration: BoxDecoration(
+        //           gradient: AppColors.goldGradient,
+        //           borderRadius: BorderRadius.circular(20),
+        //           boxShadow: [
+        //             BoxShadow(
+        //               color: AppColors.secondary.withOpacity(0.5),
+        //               blurRadius: 16,
+        //             ),
+        //           ],
+        //         ),
+        //         child: Row(
+        //           mainAxisSize: MainAxisSize.min,
+        //           children: [
+        //             const Icon(Icons.touch_app, color: AppColors.textDark),
+        //             const SizedBox(width: 8),
+        //             Text(
+        //               AppStrings.gameYourTurn,
+        //               style: const TextStyle(
+        //                 fontWeight: FontWeight.bold,
+        //                 color: AppColors.textDark,
+        //               ),
+        //             ),
+        //           ],
+        //         ),
+        //       ),
+        //     ),
+        //   ),
 
         // Event message - Top Center, non-blocking
         if (state.lastEventMessage != null &&

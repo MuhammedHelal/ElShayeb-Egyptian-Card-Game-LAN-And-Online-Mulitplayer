@@ -184,9 +184,10 @@ class GameState extends Equatable {
     return GameState(
       roomId: json['roomId'] as String,
       roomCode: json['roomCode'] as String,
-      players: (json['players'] as List<dynamic>)
-          .map((p) => Player.fromJson(p as Map<String, dynamic>))
-          .toList(),
+      players: (json['players'] as List<dynamic>?)
+              ?.map((p) => Player.fromJson(p as Map<String, dynamic>))
+              .toList() ??
+          [],
       currentPlayerIndex: json['currentPlayerIndex'] as int,
       phase: GamePhase.values[json['phase'] as int],
       roundNumber: json['roundNumber'] as int,

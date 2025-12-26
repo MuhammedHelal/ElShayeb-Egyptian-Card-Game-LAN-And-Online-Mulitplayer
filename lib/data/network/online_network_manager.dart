@@ -1,39 +1,33 @@
-/// Data Layer - Online Network Manager
+/// Data Layer - Online Network Manager (Adapter)
 ///
-/// WebSocket-based networking for online multiplayer.
-/// Uses the same game engine and rules as LAN mode.
-/// Simply swaps the transport layer from TCP to WebSocket.
+/// Adapts the generic NetworkManager interface (used by Game Controller)
+/// to the OnlineNetworkService interface (implemented by Supabase/Firebase).
 library;
 
 import 'dart:async';
 import 'dart:developer';
 
-import 'package:web_socket_channel/web_socket_channel.dart';
-
 import '../../domain/entities/entities.dart';
-import '../../core/constants/endpoints.dart';
+import '../../injection_container.dart';
+import 'connection_state.dart';
 import 'network_manager.dart';
-import 'network_message.dart';
+import 'online_events.dart';
+import 'online_network_service.dart';
 
-/// Online network manager using WebSockets
 class OnlineNetworkManager implements NetworkManager {
-  WebSocketChannel? _channel;
-  StreamSubscription? _subscription;
+  final OnlineNetworkService _networkService;
 
-  bool _isConnected = false;
+  // Local state to track game context
   bool _isHosting = false;
   String? _localPlayerId;
-  String? _roomId;
+  String? _currentRoomId;
 
-  // Heartbeat
-  Timer? _heartbeatTimer;
-  static const _heartbeatInterval = Duration(seconds: 10);
+  StreamSubscription? _eventSub;
+  StreamSubscription? _connectionSub;
 
-  // Reconnection
-  int _reconnectAttempts = 0;
-  static const _maxReconnectAttempts = 5;
-  Timer? _reconnectTimer;
-  Player? _lastPlayer;
+  OnlineNetworkManager({
+    OnlineNetworkService? networkService,
+  }) : _networkService = networkService ?? getIt<OnlineNetworkService>();
 
   @override
   StateUpdateCallback? onStateUpdate;
@@ -51,309 +45,236 @@ class OnlineNetworkManager implements NetworkManager {
   RoomDiscoveryCallback? onRoomDiscovered;
 
   @override
-  bool get isConnected => _isConnected;
+  bool get isConnected => _currentRoomId != null; // Simplified logic
 
   @override
   bool get isHosting => _isHosting;
 
   @override
-  String? get hostAddress => Endpoints.gameSocket;
+  String? get hostAddress =>
+      _currentRoomId; // In online mode, hostAddress is the Room Code
 
   @override
-  int? get hostPort => null; // Port is in the URL
+  int? get hostPort => null;
 
-  /// Start hosting a game (creates room on server)
+  /// Start hosting a game
   @override
   Future<void> startHosting(GameState initialState) async {
-    _isHosting = true;
-    _roomId = initialState.roomId;
-
-    await _connect();
-
-    // Send create room message
-    final message = NetworkMessage(
-      type: MessageType.stateSync,
-      payload: {
-        'action': 'create',
-        'state': initialState.toJson(),
-      },
-    );
-
-    _send(message);
-  }
-
-  /// Stop hosting
-  @override
-  Future<void> stopHosting() async {
-    if (_roomId != null) {
-      final message = NetworkMessage(
-        type: MessageType.disconnected,
-        payload: {'action': 'close_room', 'roomId': _roomId},
-      );
-      _send(message);
-    }
-
-    await disconnect();
-    _isHosting = false;
-  }
-
-  /// Connect to WebSocket server
-  Future<void> _connect() async {
     try {
-      _channel = WebSocketChannel.connect(Uri.parse(Endpoints.gameSocket));
+      _isHosting = true;
+      _localPlayerId = initialState.hostId;
 
-      _subscription = _channel!.stream.listen(
-        _handleMessage,
-        onError: (error) {
-          log('WebSocket error: $error');
-          _handleDisconnect();
-        },
-        onDone: () {
-          log('WebSocket closed');
-          _handleDisconnect();
-        },
-      );
+      await _networkService.initialize();
+      _setupListeners();
 
-      _isConnected = true;
-      _reconnectAttempts = 0;
+      // Create room via service
+      final roomId = await _networkService.createRoom({
+        'roomCode': initialState.roomCode,
+        'hostName': initialState.players.first.name,
+        'initialState': initialState.toJson(),
+      });
 
-      _startHeartbeat();
+      _currentRoomId = roomId;
+
+      // Initial broadcast
+      await broadcastState(initialState);
     } catch (e) {
-      log('Failed to connect to server: $e');
-      _handleDisconnect();
+      log('Error start hosting: $e');
+      _isHosting = false;
       rethrow;
     }
   }
 
-  /// Handle incoming message
-  void _handleMessage(dynamic data) {
-    try {
-      final message = NetworkMessage.decode(data as String);
-
-      switch (message.type) {
-        case MessageType.stateSync:
-          final stateData = message.payload['state'] as Map<String, dynamic>;
-          final state = GameState.fromJson(stateData);
-          onStateUpdate?.call(state);
-          break;
-
-        case MessageType.playerAction:
-          // Host receives player actions from server relay
-          if (_isHosting) {
-            onPlayerAction?.call(message.payload);
-          }
-          break;
-
-        case MessageType.joinConfirm:
-          final stateData = message.payload['state'] as Map<String, dynamic>;
-          final state = GameState.fromJson(stateData);
-          onStateUpdate?.call(state);
-          break;
-
-        case MessageType.gameEvent:
-          final eventType =
-              GameEventType.values[message.payload['eventType'] as int];
-          final eventMessage = message.payload['message'] as String;
-          final eventData = message.payload['data'] as Map<String, dynamic>?;
-
-          final event = GameEvent(
-            type: eventType,
-            message: eventMessage,
-            data: eventData,
-          );
-          onGameEvent?.call(event);
-          break;
-
-        case MessageType.joinReject:
-          log('Join rejected: ${message.payload['reason']}');
-          disconnect();
-          break;
-
-        case MessageType.disconnected:
-          final playerId = message.payload['playerId'] as String?;
-          if (playerId != null) {
-            onConnectionChange?.call(playerId, false);
-          }
-          break;
-
-        case MessageType.error:
-          log('Server error: ${message.payload['message']}');
-          break;
-
-        default:
-          break;
-      }
-    } catch (e) {
-      log('Error handling message: $e');
-    }
-  }
-
-  /// Handle disconnect
-  void _handleDisconnect() {
-    _isConnected = false;
-    _heartbeatTimer?.cancel();
-    _subscription?.cancel();
-    _channel = null;
-
-    if (_reconnectAttempts < _maxReconnectAttempts) {
-      _attemptReconnect();
-    } else {
-      onConnectionChange?.call(_localPlayerId ?? '', false);
-    }
-  }
-
-  /// Attempt reconnection
-  void _attemptReconnect() {
-    _reconnectAttempts++;
-    final delay = Duration(seconds: _reconnectAttempts * 2);
-
-    log('Attempting reconnect in ${delay.inSeconds}s (attempt $_reconnectAttempts)');
-
-    _reconnectTimer = Timer(delay, () async {
-      try {
-        await _connect();
-
-        // Re-join room if was a client
-        if (_lastPlayer != null && _roomId != null) {
-          await _rejoinRoom();
-        }
-      } catch (e) {
-        log('Reconnect failed: $e');
-      }
-    });
-  }
-
-  /// Re-join room after reconnection
-  Future<void> _rejoinRoom() async {
-    if (_lastPlayer == null || _roomId == null) return;
-
-    final message = NetworkMessage(
-      type: MessageType.joinRequest,
-      payload: {
-        'roomId': _roomId,
-        'player': _lastPlayer!.toJson(),
-        'reconnect': true,
-      },
-      senderId: _lastPlayer!.id,
-    );
-
-    _send(message);
-  }
-
-  /// Connect to a room as client
+  /// Connect to a host (Join Room)
   @override
   Future<void> connectToHost(String address, int port, Player player) async {
-    // For online mode, address is the room code
-    _roomId = address;
-    _localPlayerId = player.id;
-    _lastPlayer = player;
-    _isHosting = false;
+    try {
+      _isHosting = false;
+      _localPlayerId = player.id;
 
-    await _connect();
+      // address is the room code/id in online mode
+      final roomId = address;
 
-    // Send join request
-    final message = NetworkMessage.joinRequest(player);
-    message.payload['roomId'] = _roomId;
+      await _networkService.initialize();
+      _setupListeners();
 
-    _send(message);
+      await _networkService.joinRoom(roomId, {
+        'name': player.name,
+        'id': player.id,
+        'avatarId': player.avatarId,
+      });
+
+      _currentRoomId = roomId;
+
+      // Notify we joined - sending a "join" action to host
+      // In Supabase, the presence join might handle this, but explicit action is safer for game logic
+      await sendAction({
+        'type': 'join',
+        'player': player.toJson(),
+      });
+    } catch (e) {
+      log('Error connecting to host: $e');
+      _currentRoomId = null;
+      rethrow;
+    }
   }
 
-  /// Disconnect from server
+  /// Disconnect/Leave
   @override
   Future<void> disconnect() async {
-    _heartbeatTimer?.cancel();
-    _reconnectTimer?.cancel();
-
-    if (_localPlayerId != null) {
-      final message = NetworkMessage.disconnected(_localPlayerId!);
-      _send(message);
-    }
-
-    await _subscription?.cancel();
-    await _channel?.sink.close();
-
-    _channel = null;
-    _subscription = null;
-    _isConnected = false;
-    _localPlayerId = null;
-    _roomId = null;
-    _lastPlayer = null;
-    _reconnectAttempts = 0;
+    await _networkService.leaveRoom();
+    _currentRoomId = null;
+    _isHosting = false;
+    _eventSub?.cancel();
+    _connectionSub?.cancel();
   }
 
-  /// Broadcast state to all clients (via server)
+  /// Broadcast state (Host Only)
   @override
   Future<void> broadcastState(GameState state) async {
     if (!_isHosting) return;
 
-    final message = NetworkMessage.stateSync(state);
-    message.payload['roomId'] = _roomId;
-
-    _send(message);
+    await _networkService.updateState(state.toJson());
   }
 
-  /// Broadcast a discrete game event to all clients (via server)
+  /// Broadcast discrete event (Host Only)
   @override
   Future<void> broadcastEvent(GameEvent event) async {
     if (!_isHosting) return;
 
-    final message = NetworkMessage.gameEvent(
-      event.type,
-      event.message,
-      event.data,
-    );
-    message.payload['roomId'] = _roomId;
-
-    _send(message);
+    await _networkService.broadcastEvent(GenericGameEvent(
+      type: OnlineEventTypes.gameAction, // Wrapper type
+      data: {
+        'eventType': event.type.index,
+        'message': event.message,
+        'data': event.data,
+      },
+      timestamp: DateTime.now(),
+      senderId: _localPlayerId,
+    ));
   }
 
-  /// Send action to host (via server)
+  /// Send action to host (Client)
   @override
   Future<void> sendAction(Map<String, dynamic> action) async {
-    if (_localPlayerId == null) return;
+    // In our architecture, "sending action" is just broadcasting an event
+    // The Host listens to all events and processes "player_action" types
 
-    final message = NetworkMessage.playerAction(action, _localPlayerId!);
-    message.payload['roomId'] = _roomId;
-
-    _send(message);
+    await _networkService.broadcastEvent(GenericGameEvent(
+      type: OnlineEventTypes.gameAction,
+      data: {
+        'isPlayerAction': true,
+        'actionPayload': action,
+      },
+      timestamp: DateTime.now(),
+      senderId: _localPlayerId,
+    ));
   }
 
-  /// Send message to server
-  void _send(NetworkMessage message) {
-    if (_channel != null && _isConnected) {
-      try {
-        _channel!.sink.add(message.encode());
-      } catch (e) {
-        log('Error sending message: $e');
+  void _setupListeners() {
+    _eventSub?.cancel();
+    _eventSub = _networkService.gameEvents.listen(_handleIncomingEvent);
+
+    _connectionSub?.cancel();
+    _connectionSub =
+        _networkService.connectionState.listen(_handleConnectionState);
+  }
+
+  void _handleIncomingEvent(OnlineGameEvent event) {
+    try {
+      // 1. State Sync (Clients receive state)
+      if (event.type == OnlineEventTypes.stateSync) {
+        if (!_isHosting) {
+          // Host ignores state sync (it is the source of truth)
+          if (event.data['state'] == null) {
+            log('Warning: received empty state sync');
+            return;
+          }
+          final stateData = event.data['state'] as Map<String, dynamic>;
+          final state = GameState.fromJson(stateData);
+          onStateUpdate?.call(state);
+        }
+        return;
+      }
+
+      // 2. Game Actions / Events
+      if (event.type == OnlineEventTypes.gameAction) {
+        final data = event.data;
+
+        // Check if it's a generic GameEvent (broadcasted by host to everyone)
+        if (data.containsKey('eventType') &&
+            !data.containsKey('isPlayerAction')) {
+          final eventTypeIndex = data['eventType'] as int;
+          final message = data['message'] as String;
+          final eventData = data['data'] as Map<String, dynamic>?;
+
+          final gameEvent = GameEvent(
+            type: GameEventType.values[eventTypeIndex],
+            message: message,
+            data: eventData,
+          );
+          onGameEvent?.call(gameEvent);
+          return;
+        }
+
+        // Check if it's a Player Action (sent by client to host)
+        if (data.containsKey('isPlayerAction') && _isHosting) {
+          final action = data['actionPayload'] as Map<String, dynamic>;
+          onPlayerAction?.call(action);
+          return;
+        }
+      }
+
+      // 3. Player Joined (Presence)
+      if (event.type == OnlineEventTypes.playerJoined) {
+        log('Player Joined Event: ${event.data}');
+
+        // If we are host, we need to process this as a 'join' action to add player to GameState
+        if (_isHosting && onPlayerAction != null) {
+          // Construct a join action payload
+          final joinAction = {
+            'type': 'join',
+            'player': event.data, // event.data is the player map
+          };
+          onPlayerAction!(joinAction);
+        }
+      }
+
+      // 4. Player Left
+      if (event.type == OnlineEventTypes.playerLeft) {
+        final playerId = event.senderId;
+        if (playerId != null) {
+          onConnectionChange?.call(playerId, false);
+        }
+      }
+    } catch (e) {
+      log('Error handling online event: $e');
+    }
+  }
+
+  void _handleConnectionState(OnlineConnectionState state) {
+    log('Connection State: ${state.status}');
+    if (state.status == OnlineConnectionStatus.disconnected ||
+        state.status == OnlineConnectionStatus.error) {
+      // Maybe notify UI of disconnection
+      if (_localPlayerId != null) {
+        onConnectionChange?.call(_localPlayerId!, false);
       }
     }
   }
 
-  /// Start heartbeat
-  void _startHeartbeat() {
-    _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(_heartbeatInterval, (_) {
-      if (_isConnected && _localPlayerId != null) {
-        final message = NetworkMessage.heartbeat(_localPlayerId!);
-        _send(message);
-      }
-    });
-  }
-
-  /// Start discovering rooms (online)
+  // Not used in Online Mode
   @override
-  Future<void> startDiscovery() async {
-    // Online mode doesn't use mDNS discovery
-    // Rooms are found by room code
-  }
+  Future<void> startDiscovery() async {}
 
-  /// Stop discovery
   @override
-  Future<void> stopDiscovery() async {
-    // Nothing to stop for online mode
+  Future<void> stopDiscovery() async {}
+
+  @override
+  Future<void> stopHosting() async {
+    await disconnect();
   }
 
-  /// Dispose resources
   @override
   void dispose() {
     disconnect();

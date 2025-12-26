@@ -145,30 +145,38 @@ class ScoreboardWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Text(
-                      player.name,
-                      style: AppTypography.titleMedium.copyWith(
-                        color: isLocal
-                            ? AppColors.secondary
-                            : AppColors.textPrimary,
-                        fontWeight:
-                            isLocal ? FontWeight.bold : FontWeight.normal,
+                    Expanded(
+                      child: Text(
+                        maxLines: 1,
+                        player.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.bodyLarge.copyWith(
+                          color: isLocal
+                              ? AppColors.secondary
+                              : AppColors.textPrimary,
+                          fontWeight:
+                              isLocal ? FontWeight.bold : FontWeight.normal,
+                        ),
                       ),
                     ),
                     if (isLocal)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 4),
-                        child: Text(AppStrings.scoreboardYou,
-                            style: const TextStyle(fontSize: 12)),
+                      Text(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        AppStrings.scoreboardYou,
+                        style: const TextStyle(fontSize: 12),
                       ),
                   ],
                 ),
                 if (isShayeb)
-                  Text(
-                    AppStrings.scoreboardShayeb,
-                    style: AppTypography.bodyMedium.copyWith(
-                      color: AppColors.error,
+                  FittedBox(
+                    child: Text(
+                      AppStrings.scoreboardShayeb,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.error,
+                      ),
                     ),
                   ),
               ],

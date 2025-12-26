@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/core.dart';
 import 'domain/domain.dart';
 import 'presentation/presentation.dart';
+import 'data/network/online_network_service.dart';
+import 'data/network/supabase/supabase_network_service.dart';
 
 /// Global service locator instance
 final getIt = GetIt.instance;
@@ -39,6 +41,13 @@ Future<void> initDependencies() async {
 
   // Game Rules Engine
   getIt.registerLazySingleton<GameRulesEngine>(() => GameRulesEngine());
+
+  // ============ Network ============
+
+  // Online Network Service (Supabase)
+  getIt.registerLazySingleton<OnlineNetworkService>(
+    () => SupabaseNetworkService(),
+  );
 
   // ============ Presentation ============
 
