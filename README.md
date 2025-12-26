@@ -124,8 +124,6 @@ flutter run
 ---
 
 ## 🌐 Social Links
-
-- GitHub: https://github.com/your-username/elshayeb
 - Email: muhdashrafatef@gmail.com
 
 ---
