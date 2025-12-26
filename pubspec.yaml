@@ -32,6 +32,9 @@ dependencies:
   # Utilities
   uuid: ^4.2.1
   vibration: ^3.1.5
+  
+  # Localization
+  easy_localization: ^3.0.5
 
 dev_dependencies:
   flutter_test:
@@ -44,3 +47,4 @@ flutter:
     - assets/cards/
     - assets/sounds/
     - assets/music/
+    - assets/translations/

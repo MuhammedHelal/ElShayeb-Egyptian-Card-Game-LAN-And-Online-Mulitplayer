@@ -29,13 +29,13 @@ enum Suit {
   String get name {
     switch (this) {
       case Suit.hearts:
-        return 'hearts';
+        return 'H';
       case Suit.diamonds:
-        return 'diamonds';
+        return 'D';
       case Suit.clubs:
-        return 'clubs';
+        return 'C';
       case Suit.spades:
-        return 'spades';
+        return 'S';
     }
   }
 
@@ -183,7 +183,7 @@ class PlayingCard extends Equatable {
   String get displayName => '${rank.symbol}${suit.symbol}';
 
   /// Asset path for the card SVG
-  String get assetPath => 'assets/cards/${suit.name}_${rank.fullName}.svg';
+  String get assetPath => 'assets/cards/${rank.symbol}${suit.name}.svg';
 
   @override
   List<Object?> get props => [suit, rank, id];

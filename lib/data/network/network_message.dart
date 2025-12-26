@@ -31,6 +31,9 @@ enum MessageType {
 
   /// Error message
   error,
+
+  /// Discrete game event (like card stolen animation)
+  gameEvent,
 }
 
 /// Network message wrapper
@@ -104,6 +107,19 @@ class NetworkMessage {
       type: MessageType.disconnected,
       payload: {'playerId': playerId},
       senderId: playerId,
+    );
+  }
+
+  /// Create a game event message (host -> clients)
+  factory NetworkMessage.gameEvent(
+      GameEventType eventType, String message, Map<String, dynamic>? data) {
+    return NetworkMessage(
+      type: MessageType.gameEvent,
+      payload: {
+        'eventType': eventType.index,
+        'message': message,
+        'data': data,
+      },
     );
   }
 

@@ -2,8 +2,9 @@
 ///
 /// This script generates SVG card assets for the El-Shayeb game.
 /// Run with: dart run tool/generate_cards.dart
+///
 library;
-
+/*
 import 'dart:io';
 
 void main() {
@@ -100,3 +101,4 @@ String generateCardSvg(String rank, String suit, String color) {
   </g>
 </svg>''';
 }
+*/

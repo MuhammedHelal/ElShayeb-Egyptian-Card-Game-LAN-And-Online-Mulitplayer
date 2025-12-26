@@ -72,7 +72,7 @@ class GameRulesEngine {
 
   /// Validates if a player can join the game
   bool canPlayerJoin(GameState state, String playerId) {
-    if (state.phase != GamePhase.lobby) return false;
+    // Allow joining in lobby or during gameplay (late join)
     if (state.isFull) return false;
     if (state.players.any((p) => p.id == playerId)) return false;
     return true;
@@ -82,8 +82,16 @@ class GameRulesEngine {
   GameState addPlayer(GameState state, Player player) {
     if (!canPlayerJoin(state, player.id)) return state;
 
+    // If game is already in progress, add player as spectator/waiting
+    final playerToAdd = state.phase == GamePhase.lobby
+        ? player
+        : player.copyWith(
+            status: PlayerStatus.waiting,
+            hand: const [],
+          );
+
     return state.copyWith(
-      players: [...state.players, player],
+      players: [...state.players, playerToAdd],
     );
   }
 
@@ -333,6 +341,7 @@ class GameRulesEngine {
   /// Starts a new round
   GameState startNewRound(GameState state) {
     // Reset player statuses but keep scores
+    // Activate any waiting players (late joiners)
     var players = state.players.map((p) {
       return p.copyWith(
         status: PlayerStatus.playing,

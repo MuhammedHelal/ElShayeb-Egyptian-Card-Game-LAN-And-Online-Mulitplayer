@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/localization_service.dart';
 import '../../../domain/entities/player.dart';
 import '../theme/app_theme.dart';
 
@@ -129,10 +130,9 @@ class PlayerAvatarWidget extends StatelessWidget {
                 ),
               ),
 
-            // Score
             if (!compact)
               Text(
-                '${player.score} pts',
+                AppStrings.scoreboardPts(player.score),
                 style: AppTypography.bodyMedium.copyWith(
                   color:
                       player.score >= 0 ? AppColors.success : AppColors.error,

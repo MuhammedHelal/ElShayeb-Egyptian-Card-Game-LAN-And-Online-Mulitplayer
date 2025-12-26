@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/localization/localization_service.dart';
 import '../cubit/cubits.dart';
 import '../theme/app_theme.dart';
 
@@ -33,8 +34,8 @@ class SettingsScreen extends StatelessWidget {
                       icon: const Icon(Icons.arrow_back),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Settings',
+                    Text(
+                      AppStrings.settingsTitle,
                       style: AppTypography.headlineMedium,
                     ),
                   ],
@@ -49,7 +50,7 @@ class SettingsScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(16),
                       children: [
                         // Profile section
-                        const _SectionHeader(title: 'Profile'),
+                        _SectionHeader(title: AppStrings.settingsProfile),
                         _SettingsCard(
                           children: [
                             _ProfileTile(
@@ -70,12 +71,12 @@ class SettingsScreen extends StatelessWidget {
                         const SizedBox(height: 24),
 
                         // Audio section
-                        const _SectionHeader(title: 'Audio'),
+                        _SectionHeader(title: AppStrings.settingsAudio),
                         _SettingsCard(
                           children: [
                             _SwitchTile(
                               icon: Icons.music_note,
-                              title: 'Background Music',
+                              title: AppStrings.settingsBackgroundMusic,
                               value: state.isMusicEnabled,
                               onChanged: (_) {
                                 context.read<SettingsCubit>().toggleMusic();
@@ -84,7 +85,7 @@ class SettingsScreen extends StatelessWidget {
                             if (state.isMusicEnabled)
                               _SliderTile(
                                 icon: Icons.volume_up,
-                                title: 'Music Volume',
+                                title: AppStrings.settingsMusicVolume,
                                 value: state.musicVolume,
                                 onChanged: (value) {
                                   context
@@ -95,7 +96,7 @@ class SettingsScreen extends StatelessWidget {
                             const Divider(),
                             _SwitchTile(
                               icon: Icons.campaign,
-                              title: 'Sound Effects',
+                              title: AppStrings.settingsSoundEffects,
                               value: state.isSfxEnabled,
                               onChanged: (_) {
                                 context.read<SettingsCubit>().toggleSfx();
@@ -104,7 +105,7 @@ class SettingsScreen extends StatelessWidget {
                             if (state.isSfxEnabled)
                               _SliderTile(
                                 icon: Icons.volume_up,
-                                title: 'Effects Volume',
+                                title: AppStrings.settingsEffectsVolume,
                                 value: state.sfxVolume,
                                 onChanged: (value) {
                                   context
@@ -118,13 +119,13 @@ class SettingsScreen extends StatelessWidget {
                         const SizedBox(height: 24),
 
                         // Haptics section
-                        const _SectionHeader(title: 'Haptics'),
+                        _SectionHeader(title: AppStrings.settingsHaptics),
                         _SettingsCard(
                           children: [
                             _SwitchTile(
                               icon: Icons.vibration,
-                              title: 'Vibration',
-                              subtitle: 'Haptic feedback for game actions',
+                              title: AppStrings.settingsVibration,
+                              subtitle: AppStrings.settingsVibrationDesc,
                               value: state.isVibrationEnabled,
                               onChanged: (_) {
                                 context.read<SettingsCubit>().toggleVibration();
@@ -136,7 +137,7 @@ class SettingsScreen extends StatelessWidget {
                         const SizedBox(height: 24),
 
                         // About section
-                        const _SectionHeader(title: 'About'),
+                        _SectionHeader(title: AppStrings.settingsAbout),
                         _SettingsCard(
                           children: [
                             ListTile(
@@ -158,13 +159,13 @@ class SettingsScreen extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              title: const Text('El-Shayeb'),
-                              subtitle: const Text('Version 1.0.0'),
+                              title: Text(AppStrings.appName),
+                              subtitle: Text(AppStrings.settingsVersion),
                             ),
                             const Divider(),
                             ListTile(
                               leading: const Icon(Icons.info_outline),
-                              title: const Text('Game Rules'),
+                              title: Text(AppStrings.settingsGameRules),
                               trailing: const Icon(Icons.chevron_right),
                               onTap: () => _showRulesDialog(context),
                             ),
@@ -188,64 +189,48 @@ class SettingsScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('El-Shayeb Rules'),
-        content: const SingleChildScrollView(
+        title: Text(AppStrings.rulesTitle),
+        content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '🎴 The Deck',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                AppStrings.rulesDeckTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
+              Text(AppStrings.rulesDeckDesc),
+              const SizedBox(height: 16),
               Text(
-                'Standard deck with only ONE King (the Shayeb). '
-                'The other three Kings are removed.',
+                AppStrings.rulesDealingTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 16),
+              Text(AppStrings.rulesDealingDesc),
+              const SizedBox(height: 16),
               Text(
-                '🃏 Dealing',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                AppStrings.rulesGameplayTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
+              Text(AppStrings.rulesGameplayDesc),
+              const SizedBox(height: 16),
               Text(
-                'All cards are dealt one by one until the deck is empty. '
-                'Each player removes any matching pairs from their hand.',
+                AppStrings.rulesWinningTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 16),
+              Text(AppStrings.rulesWinningDesc),
+              const SizedBox(height: 16),
               Text(
-                '🎮 Gameplay',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                AppStrings.rulesScoringTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              Text(
-                'On your turn, draw ONE random card from the player next to you. '
-                'If it matches a card in your hand, remove the pair. '
-                'If not, keep the card.',
-              ),
-              SizedBox(height: 16),
-              Text(
-                '🏆 Winning',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Players who empty their hand are winners! '
-                'The last player holding the King (Shayeb) loses.',
-              ),
-              SizedBox(height: 16),
-              Text(
-                '📊 Scoring',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                '1st: +100 | 2nd: +60 | 3rd: +40 | 4th: +20 | 5th: +10\n'
-                'Shayeb (last): -50',
-              ),
+              Text(AppStrings.rulesScoringDesc),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Got it!'),
+            child: Text(AppStrings.rulesGotIt),
           ),
         ],
       ),
@@ -433,9 +418,9 @@ class _ProfileTile extends StatelessWidget {
           // Name input
           TextField(
             controller: TextEditingController(text: name),
-            decoration: const InputDecoration(
-              labelText: 'Player Name',
-              prefixIcon: Icon(Icons.person),
+            decoration: InputDecoration(
+              labelText: AppStrings.settingsPlayerName,
+              prefixIcon: const Icon(Icons.person),
             ),
             onChanged: onNameChanged,
           ),

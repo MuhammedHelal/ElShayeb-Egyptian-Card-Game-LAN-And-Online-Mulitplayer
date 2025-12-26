@@ -31,6 +31,11 @@ class GameCubit extends Cubit<GameUiState> {
   GameController? _gameController;
   NetworkManager? _networkManager;
   GameMode _currentMode = GameMode.lan;
+  bool _isHosting = false;
+
+  // LAN connection info (for clients to display host IP:PORT)
+  String? _connectedHostAddress;
+  int? _connectedHostPort;
 
   // LAN discovery
   bool _isDiscovering = false;
@@ -62,12 +67,18 @@ class GameCubit extends Cubit<GameUiState> {
 
   /// Connection info string for sharing
   String get connectionInfo {
-    if (_networkManager == null) return '';
     if (_currentMode == GameMode.lan) {
-      final ip = _networkManager!.hostAddress;
-      final port = _networkManager!.hostPort;
-      if (ip != null && port != null) {
-        return '$ip:$port';
+      // For host, use network manager's address
+      if (_isHosting && _networkManager != null) {
+        final ip = _networkManager!.hostAddress;
+        final port = _networkManager!.hostPort;
+        if (ip != null && port != null) {
+          return '$ip:$port';
+        }
+      }
+      // For clients, use the stored connection info
+      if (_connectedHostAddress != null && _connectedHostPort != null) {
+        return '$_connectedHostAddress:$_connectedHostPort';
       }
     }
     return state.roomCode;
@@ -156,6 +167,8 @@ class GameCubit extends Cubit<GameUiState> {
       // Wait a moment for network to initialize
       await Future.delayed(const Duration(milliseconds: 500));
 
+      _isHosting = true;
+
       emit(state.copyWith(
         status: LoadingStatus.success,
         isConnecting: false,
@@ -184,6 +197,12 @@ class GameCubit extends Cubit<GameUiState> {
     ));
 
     try {
+      // Store connection info for LAN mode (so clients can display IP:PORT)
+      if (_currentMode == GameMode.lan) {
+        _connectedHostAddress = hostAddress;
+        _connectedHostPort = port;
+      }
+
       // Create network manager based on mode
       _networkManager = _currentMode == GameMode.lan
           ? LanNetworkManager()
@@ -219,6 +238,8 @@ class GameCubit extends Cubit<GameUiState> {
       // Join the game
       await _gameController!.joinGame(player, hostAddress, port);
 
+      _isHosting = false;
+
       emit(state.copyWith(
         status: LoadingStatus.success,
         isConnecting: false,
@@ -252,11 +273,9 @@ class GameCubit extends Cubit<GameUiState> {
 
     await _gameController!.startGame();
 
-    emit(state.copyWith(showDealAnimation: true));
-
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    emit(state.copyWith(showDealAnimation: false));
+    // emit(state.copyWith(showDealAnimation: true));
+    // await Future.delayed(const Duration(milliseconds: 1500));
+    // emit(state.copyWith(showDealAnimation: false));
 
     _audioManager.playSoundEffect(SoundEffect.deal);
     _hapticManager.cardDraw();
@@ -381,8 +400,8 @@ class GameCubit extends Cubit<GameUiState> {
 
     await _gameController!.startNewRound();
     emit(state.copyWith(
-      showDealAnimation: true,
-      lastEventMessage: "Dealing cards...",
+      // showDealAnimation: true, // Removed animation
+      lastEventMessage: "Round Started ...",
     ));
     _audioManager.playSoundEffect(SoundEffect.deal);
   }
@@ -398,6 +417,9 @@ class GameCubit extends Cubit<GameUiState> {
     _gameController?.dispose();
     _gameController = null;
     _networkManager = null;
+    _isHosting = false;
+    _connectedHostAddress = null;
+    _connectedHostPort = null;
 
     emit(const GameUiState());
   }
@@ -416,6 +438,31 @@ class GameCubit extends Cubit<GameUiState> {
       case GameEventType.pairRemoved:
         // Match animation is now handled in selectCardToDraw
         emit(state.copyWith(lastEventMessage: event.message));
+        break;
+
+      case GameEventType.cardStolen:
+        // Only show steal animation for non-active players
+        // The active player (stealer) already sees the draw interaction directly
+        final stealerId = event.data?['stealerId'] as String?;
+        final victimId = event.data?['victimId'] as String?;
+
+        if (stealerId != null &&
+            victimId != null &&
+            stealerId != state.localPlayerId) {
+          // Non-active player: trigger animation
+          // Use local time to ensure animation plays immediately regardless of clock skew
+          final timestamp = DateTime.now();
+
+          emit(state.copyWith(
+            pendingCardStealEvent: CardStealEventInfo(
+              stealerId: stealerId,
+              victimId: victimId,
+              timestamp: timestamp,
+            ),
+          ));
+        }
+        // Do not update lastEventMessage for cardStolen events
+        // as they might overwrite more important messages like 'Made a pair'
         break;
 
       case GameEventType.playerFinished:
@@ -443,6 +490,11 @@ class GameCubit extends Cubit<GameUiState> {
       default:
         emit(state.copyWith(lastEventMessage: event.message));
     }
+  }
+
+  /// Clear the pending card steal animation after it completes
+  void onStealAnimationComplete() {
+    emit(state.copyWith(clearPendingCardStealEvent: true));
   }
 
   /// Handle state updates from controller

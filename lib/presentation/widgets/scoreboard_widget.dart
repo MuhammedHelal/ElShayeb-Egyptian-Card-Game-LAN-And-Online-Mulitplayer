@@ -5,7 +5,8 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../../domain/entities/player.dart';
+import '../../core/localization/localization_service.dart';
+import '../../domain/entities/player.dart';
 import '../theme/app_theme.dart';
 
 /// Scoreboard widget showing all players sorted by score
@@ -69,7 +70,9 @@ class ScoreboardWidget extends StatelessWidget {
                 const Icon(Icons.emoji_events, color: AppColors.textDark),
                 const SizedBox(width: 8),
                 Text(
-                  showRoundResults ? 'Round Results' : 'Scoreboard',
+                  showRoundResults
+                      ? AppStrings.scoreboardRoundResults
+                      : AppStrings.scoreboardTitle,
                   style: AppTypography.headlineMedium.copyWith(
                     color: AppColors.textDark,
                   ),
@@ -154,15 +157,16 @@ class ScoreboardWidget extends StatelessWidget {
                       ),
                     ),
                     if (isLocal)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 4),
-                        child: Text('(You)', style: TextStyle(fontSize: 12)),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Text(AppStrings.scoreboardYou,
+                            style: const TextStyle(fontSize: 12)),
                       ),
                   ],
                 ),
                 if (isShayeb)
                   Text(
-                    'The Shayeb! 😭',
+                    AppStrings.scoreboardShayeb,
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.error,
                     ),
@@ -176,7 +180,7 @@ class ScoreboardWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${player.score} pts',
+                AppStrings.scoreboardPts(player.score),
                 style: AppTypography.titleMedium.copyWith(
                   color:
                       player.score >= 0 ? AppColors.success : AppColors.error,

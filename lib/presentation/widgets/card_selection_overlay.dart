@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../core/localization/localization_service.dart';
 import '../../domain/entities/entities.dart';
 import '../theme/app_theme.dart';
 import 'playing_card_widget.dart';
@@ -104,14 +105,15 @@ class _CardSelectionOverlayState extends State<CardSelectionOverlay>
                         gradient: AppColors.goldGradient,
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.touch_app, color: AppColors.textDark),
-                          SizedBox(width: 8),
+                          const Icon(Icons.touch_app,
+                              color: AppColors.textDark),
+                          const SizedBox(width: 8),
                           Text(
-                            'Tap a card to draw it!',
-                            style: TextStyle(
+                            AppStrings.gameYourTurn,
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: AppColors.textDark,
                               fontSize: 16,
@@ -173,11 +175,11 @@ class _CardSelectionOverlayState extends State<CardSelectionOverlay>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.targetPlayer.name,
+              AppStrings.cardChooseFrom(widget.targetPlayer.name),
               style: AppTypography.headlineMedium,
             ),
             Text(
-              '${widget.targetPlayer.cardCount} cards',
+              AppStrings.cardCardsCount(widget.targetPlayer.cardCount),
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -190,7 +192,7 @@ class _CardSelectionOverlayState extends State<CardSelectionOverlay>
 
   Widget _buildCardFan(int cardCount) {
     if (cardCount == 0) {
-      return const Text('No cards!');
+      return Text(AppStrings.cardNoCards);
     }
 
     // Calculate layout based on card count
@@ -394,7 +396,7 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
               children: [
                 // Title
                 Text(
-                  widget.showMatch ? '🎉 Match! 🎉' : 'You drew:',
+                  widget.showMatch ? AppStrings.cardMatch : 'You drew:',
                   style: AppTypography.headlineMedium.copyWith(
                     color: widget.showMatch
                         ? AppColors.secondary

@@ -17,6 +17,9 @@ enum PlayerStatus {
 
   /// Player is the Shayeb (last one with the King)
   shayeb,
+
+  /// Player is waiting to join (late joiner, will play next round)
+  waiting,
 }
 
 /// Immutable player entity

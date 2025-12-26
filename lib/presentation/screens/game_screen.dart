@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/localization/localization_service.dart';
 import '../../domain/entities/entities.dart';
 import '../cubit/cubits.dart';
 import '../theme/app_theme.dart';
@@ -95,40 +96,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           const Spacer(),
 
           // Room code
-          if (state.roomCode.isNotEmpty)
-            GestureDetector(
-              onTap: () => _copyRoomCode(context, state),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.surface.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppColors.secondary.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.vpn_key,
-                        size: 16, color: AppColors.secondary),
-                    const SizedBox(width: 8),
-                    Text(
-                      state.roomCode,
-                      style: AppTypography.titleMedium.copyWith(
-                        color: AppColors.secondary,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.copy,
-                        size: 14, color: AppColors.textSecondary),
-                  ],
+          GestureDetector(
+            onTap: () => _copyRoomCode(context, state),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.surface.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppColors.secondary.withOpacity(0.3),
                 ),
               ),
+              child: Wrap(
+                children: [
+                  const Icon(Icons.vpn_key,
+                      size: 16, color: AppColors.secondary),
+                  const SizedBox(width: 8),
+                  Text(
+                    context.read<GameCubit>().connectionInfo,
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.copy,
+                      size: 14, color: AppColors.textSecondary),
+                ],
+              ),
             ),
+          ),
 
           const Spacer(),
 
@@ -179,13 +177,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             ),
             child: Column(
               children: [
-                const Text(
-                  'Waiting for Players',
+                Text(
+                  AppStrings.gameWaitingForPlayers,
                   style: AppTypography.headlineMedium,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${state.players.length}/6 players joined',
+                  AppStrings.gamePlayersJoined(state.players.length),
                   style: AppTypography.bodyLarge.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -220,8 +218,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       children: [
                         Text(
                           context.read<GameCubit>().currentMode == GameMode.lan
-                              ? 'Share this address with friends:'
-                              : 'Share this code with friends:',
+                              ? AppStrings.gameShareAddress
+                              : AppStrings.gameShareCode,
                           style: AppTypography.bodyMedium,
                         ),
                         const SizedBox(height: 8),
@@ -257,7 +255,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                         TextButton.icon(
                           onPressed: () => _copyConnectionInfo(context),
                           icon: const Icon(Icons.copy, size: 16),
-                          label: const Text('Copy'),
+                          label: Text(AppStrings.lobbyCopy),
                         ),
                       ],
                     ),
@@ -269,7 +267,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     ElevatedButton.icon(
                       onPressed: () => context.read<GameCubit>().startGame(),
                       icon: const Icon(Icons.play_arrow),
-                      label: const Text('Start Game'),
+                      label: Text(AppStrings.gameStart),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 48,
@@ -279,7 +277,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     )
                   else
                     Text(
-                      'Need at least 2 players to start',
+                      AppStrings.gameNeedPlayers,
                       style: AppTypography.bodyMedium.copyWith(
                         color: AppColors.warning,
                       ),
@@ -339,6 +337,22 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             ),
           ),
 
+        // Card Steal Animation Overlay (only for non-active players)
+        if (state.pendingCardStealEvent != null)
+          Positioned.fill(
+            child: CardStealAnimationOverlay(
+              players: state.players,
+              localPlayerId: state.localPlayerId,
+              event: CardStealEvent(
+                stealerId: state.pendingCardStealEvent!.stealerId,
+                victimId: state.pendingCardStealEvent!.victimId,
+                timestamp: state.pendingCardStealEvent!.timestamp,
+              ),
+              onComplete: () =>
+                  context.read<GameCubit>().onStealAnimationComplete(),
+            ),
+          ),
+
         // Turn indicator overlay (only when idle and not animating)
         if (state.isMyTurn &&
             state.drawPhase == DrawPhase.idle &&
@@ -361,14 +375,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     ),
                   ],
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.touch_app, color: AppColors.textDark),
-                    SizedBox(width: 8),
+                    const Icon(Icons.touch_app, color: AppColors.textDark),
+                    const SizedBox(width: 8),
                     Text(
-                      'Tap a player to draw a card!',
-                      style: TextStyle(
+                      AppStrings.gameYourTurn,
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppColors.textDark,
                       ),
@@ -383,7 +397,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         if (state.lastEventMessage != null &&
             state.lastEventMessage != "State synchronized")
           Positioned(
-            top: 80,
+            top: 0,
             left: 0,
             right: 0,
             child: IgnorePointer(
@@ -460,7 +474,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             ElevatedButton.icon(
               onPressed: () => context.read<GameCubit>().startNewRound(),
               icon: const Icon(Icons.refresh),
-              label: const Text('New Round'),
+              label: Text(AppStrings.gameNewRound),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 48,
@@ -488,22 +502,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         children: [
           // Shuffle hand button
           if (localPlayer.isPlaying && localPlayer.hand.length > 1)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: TextButton.icon(
-                onPressed: () => context.read<GameCubit>().shuffleHand(),
-                icon: const Icon(Icons.shuffle,
-                    size: 16, color: AppColors.secondary),
-                label: Text(
-                  'Shuffle Hand',
-                  style: AppTypography.labelLarge
-                      .copyWith(color: AppColors.secondary),
-                ),
-                style: TextButton.styleFrom(
-                  backgroundColor: AppColors.surface.withOpacity(0.3),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+            TextButton.icon(
+              onPressed: () => context.read<GameCubit>().shuffleHand(),
+              icon: const Icon(Icons.shuffle,
+                  size: 16, color: AppColors.secondary),
+              label: Text(
+                AppStrings.gameShuffleHand,
+                style: AppTypography.labelLarge
+                    .copyWith(color: AppColors.secondary),
+              ),
+              style: TextButton.styleFrom(
+                backgroundColor: AppColors.surface.withOpacity(0.3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
             ),
@@ -524,13 +535,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Leave Game?'),
-        content: const Text(
-            'Are you sure you want to leave? You will lose your progress.'),
+        title: Text(AppStrings.gameLeaveTitle),
+        content: Text(AppStrings.gameLeaveMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppStrings.gameCancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -538,7 +548,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               Navigator.pop(context);
               Navigator.pop(context);
             },
-            child: const Text('Leave'),
+            child: Text(AppStrings.gameLeave),
           ),
         ],
       ),
@@ -555,7 +565,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           children: [
             ListTile(
               leading: const Icon(Icons.leaderboard),
-              title: const Text('Scoreboard'),
+              title: Text(AppStrings.gameScoreboard),
               onTap: () {
                 Navigator.pop(context);
                 _showScoreboard(context, state);
@@ -563,7 +573,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             ),
             ListTile(
               leading: const Icon(Icons.settings),
-              title: const Text('Settings'),
+              title: Text(AppStrings.gameSettings),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, '/settings');
@@ -571,8 +581,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             ),
             ListTile(
               leading: const Icon(Icons.exit_to_app, color: AppColors.error),
-              title: const Text('Leave Game',
-                  style: TextStyle(color: AppColors.error)),
+              title: Text(AppStrings.gameLeaveGame,
+                  style: const TextStyle(color: AppColors.error)),
               onTap: () {
                 Navigator.pop(context);
                 _showExitDialog(context);
@@ -606,9 +616,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         : state.roomCode;
     Clipboard.setData(ClipboardData(text: textToCopy));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Copied to clipboard!'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(AppStrings.gameCopied),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -620,9 +630,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         : gameCubit.state.roomCode;
     Clipboard.setData(ClipboardData(text: textToCopy));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Copied to clipboard!'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(AppStrings.gameCopied),
+        duration: const Duration(seconds: 1),
       ),
     );
   }

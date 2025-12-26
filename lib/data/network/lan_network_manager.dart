@@ -59,6 +59,9 @@ class LanNetworkManager implements NetworkManager {
   PlayerActionCallback? onPlayerAction;
 
   @override
+  GameEventCallback? onGameEvent;
+
+  @override
   ConnectionChangeCallback? onConnectionChange;
 
   @override
@@ -252,13 +255,7 @@ class LanNetworkManager implements NetworkManager {
         return;
       }
 
-      if (_currentState != null && _currentState!.phase != GamePhase.lobby) {
-        _sendToSocket(
-            socket, NetworkMessage.joinReject('Game already started'));
-        return;
-      }
-
-      // Accept join
+      // Accept join (allow late joining - game logic will handle spectator state)
       _clientSockets[player.id] = socket;
       _lastHeartbeat[player.id] = DateTime.now();
 
@@ -301,17 +298,6 @@ class LanNetworkManager implements NetworkManager {
     }
   }
 
-  /// Send message to a specific socket with async flush
-  Future<void> _sendToSocketAsync(Socket socket, NetworkMessage message) async {
-    try {
-      final data = '${message.encode()}\n';
-      socket.write(data);
-      await socket.flush();
-    } catch (e) {
-      log('Error sending to socket: $e');
-    }
-  }
-
   /// Broadcast state to all clients
   @override
   Future<void> broadcastState(GameState state) async {
@@ -325,13 +311,38 @@ class LanNetworkManager implements NetworkManager {
       // Send to each client with proper error handling
       for (final entry in _clientSockets.entries) {
         try {
-          await _sendToSocketAsync(entry.value, message);
+          _sendToSocket(entry.value, message);
         } catch (e) {
           log('Error sending state to ${entry.key}: $e');
         }
       }
     } catch (e) {
       log('Error broadcasting state: $e');
+    }
+  }
+
+  /// Broadcast a discrete game event to all clients
+  @override
+  Future<void> broadcastEvent(GameEvent event) async {
+    if (!_isHosting) return;
+
+    try {
+      final message = NetworkMessage.gameEvent(
+        event.type,
+        event.message,
+        event.data,
+      );
+
+      // Send to each client with proper error handling
+      for (final entry in _clientSockets.entries) {
+        try {
+          _sendToSocket(entry.value, message);
+        } catch (e) {
+          log('Error sending event to ${entry.key}: $e');
+        }
+      }
+    } catch (e) {
+      log('Error broadcasting event: $e');
     }
   }
 
@@ -437,6 +448,19 @@ class LanNetworkManager implements NetworkManager {
           final stateData = message.payload['state'] as Map<String, dynamic>;
           final state = GameState.fromJson(stateData);
           onStateUpdate?.call(state);
+          break;
+        case MessageType.gameEvent:
+          final eventType =
+              GameEventType.values[message.payload['eventType'] as int];
+          final eventMessage = message.payload['message'] as String;
+          final eventData = message.payload['data'] as Map<String, dynamic>?;
+
+          final event = GameEvent(
+            type: eventType,
+            message: eventMessage,
+            data: eventData,
+          );
+          onGameEvent?.call(event);
           break;
         case MessageType.joinConfirm:
           final stateData = message.payload['state'] as Map<String, dynamic>;

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/localization/localization_service.dart';
 import '../../domain/entities/room_info.dart';
 import '../cubit/cubits.dart';
 import '../theme/app_theme.dart';
@@ -100,7 +101,9 @@ class _LobbyScreenState extends State<LobbyScreen>
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        isLan ? 'Local Wi-Fi Game' : 'Online Game',
+                        isLan
+                            ? AppStrings.lobbyLocalWifiGame
+                            : AppStrings.lobbyOnlineGame,
                         style: AppTypography.headlineMedium,
                       ),
                     ],
@@ -125,9 +128,9 @@ class _LobbyScreenState extends State<LobbyScreen>
                     unselectedLabelColor: AppColors.textSecondary,
                     labelStyle: AppTypography.labelLarge,
                     dividerHeight: 0,
-                    tabs: const [
-                      Tab(text: 'Create Room'),
-                      Tab(text: 'Join Room'),
+                    tabs: [
+                      Tab(text: AppStrings.lobbyCreateRoom),
+                      Tab(text: AppStrings.lobbyJoinRoom),
                     ],
                   ),
                 ),
@@ -182,17 +185,15 @@ class _LobbyScreenState extends State<LobbyScreen>
 
           const SizedBox(height: 32),
 
-          const Text(
-            'Create a New Room',
+          Text(
+            AppStrings.lobbyCreateNewRoom,
             style: AppTypography.headlineMedium,
           ),
 
           const SizedBox(height: 8),
 
           Text(
-            isLan
-                ? 'Host a game on your local network'
-                : 'Host a game and share the code',
+            isLan ? AppStrings.lobbyHostLocal : AppStrings.lobbyHostOnline,
             style: AppTypography.bodyMedium,
             textAlign: TextAlign.center,
           ),
@@ -202,9 +203,9 @@ class _LobbyScreenState extends State<LobbyScreen>
           // Player name input
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Your Name',
-              prefixIcon: Icon(Icons.person),
+            decoration: InputDecoration(
+              labelText: AppStrings.lobbyYourName,
+              prefixIcon: const Icon(Icons.person),
             ),
             onChanged: (value) {
               context.read<SettingsCubit>().setPlayerName(value);
@@ -226,8 +227,9 @@ class _LobbyScreenState extends State<LobbyScreen>
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.play_arrow),
-              label: Text(
-                  cubit.state.isConnecting ? 'Creating...' : 'Create Room'),
+              label: Text(cubit.state.isConnecting
+                  ? AppStrings.lobbyCreating
+                  : AppStrings.lobbyCreateRoomBtn),
             ),
           ),
 
@@ -253,7 +255,7 @@ class _LobbyScreenState extends State<LobbyScreen>
       child: Column(
         children: [
           Text(
-            isLan ? 'Share this with friends:' : 'Room Code:',
+            isLan ? AppStrings.lobbyShareWithFriends : AppStrings.lobbyRoomCode,
             style: AppTypography.bodyMedium,
           ),
           const SizedBox(height: 12),
@@ -277,7 +279,7 @@ class _LobbyScreenState extends State<LobbyScreen>
             TextButton.icon(
               onPressed: () => _copyToClipboard(context, cubit.connectionInfo),
               icon: const Icon(Icons.copy, size: 18),
-              label: const Text('Copy'),
+              label: Text(AppStrings.lobbyCopy),
             ),
           ] else ...[
             // Show room code for Online
@@ -292,7 +294,7 @@ class _LobbyScreenState extends State<LobbyScreen>
             TextButton.icon(
               onPressed: () => _copyToClipboard(context, cubit.state.roomCode),
               icon: const Icon(Icons.copy, size: 18),
-              label: const Text('Copy Code'),
+              label: Text(AppStrings.lobbyCopyCode),
             ),
           ],
         ],
@@ -310,9 +312,9 @@ class _LobbyScreenState extends State<LobbyScreen>
           // Player name input
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Your Name',
-              prefixIcon: Icon(Icons.person),
+            decoration: InputDecoration(
+              labelText: AppStrings.lobbyYourName,
+              prefixIcon: const Icon(Icons.person),
             ),
             onChanged: (value) {
               context.read<SettingsCubit>().setPlayerName(value);
@@ -345,8 +347,8 @@ class _LobbyScreenState extends State<LobbyScreen>
           children: [
             const Icon(Icons.wifi_find, color: AppColors.secondary),
             const SizedBox(width: 8),
-            const Text(
-              'Availabe Rooms',
+            Text(
+              AppStrings.lobbyAvailableRooms,
               style: AppTypography.titleMedium,
             ),
             const Spacer(),
@@ -381,14 +383,14 @@ class _LobbyScreenState extends State<LobbyScreen>
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'No rooms found yet',
+                    AppStrings.lobbyNoRoomsFound,
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Searching for games on your Wi-Fi...',
+                    AppStrings.lobbySearchingWifi,
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.textSecondary.withOpacity(0.7),
                       fontSize: 12,
@@ -441,7 +443,9 @@ class _LobbyScreenState extends State<LobbyScreen>
                 ),
               )
             : Chip(
-                label: Text(room.isStarted ? 'In Game' : 'Full'),
+                label: Text(room.isStarted
+                    ? AppStrings.lobbyInGame
+                    : AppStrings.lobbyFull),
                 backgroundColor: AppColors.surfaceLight,
               ),
       ),
@@ -457,7 +461,7 @@ class _LobbyScreenState extends State<LobbyScreen>
             const Icon(Icons.keyboard, color: AppColors.textSecondary),
             const SizedBox(width: 8),
             Text(
-              'Or enter manually',
+              AppStrings.lobbyOrEnterManually,
               style: AppTypography.titleMedium.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -472,10 +476,10 @@ class _LobbyScreenState extends State<LobbyScreen>
               flex: 3,
               child: TextField(
                 controller: _addressController,
-                decoration: const InputDecoration(
-                  labelText: 'IP Address',
+                decoration: InputDecoration(
+                  labelText: AppStrings.lobbyIpAddress,
                   hintText: '192.168.x.x',
-                  prefixIcon: Icon(Icons.computer),
+                  prefixIcon: const Icon(Icons.computer),
                 ),
                 keyboardType: TextInputType.number,
                 inputFormatters: [
@@ -489,9 +493,9 @@ class _LobbyScreenState extends State<LobbyScreen>
               flex: 2,
               child: TextField(
                 controller: _portController,
-                decoration: const InputDecoration(
-                  labelText: 'Port',
-                  prefixIcon: Icon(Icons.tag),
+                decoration: InputDecoration(
+                  labelText: AppStrings.lobbyPort,
+                  prefixIcon: const Icon(Icons.tag),
                 ),
                 keyboardType: TextInputType.number,
                 inputFormatters: [
@@ -514,7 +518,9 @@ class _LobbyScreenState extends State<LobbyScreen>
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.login),
-            label: Text(cubit.state.isConnecting ? 'Joining...' : 'Join Room'),
+            label: Text(cubit.state.isConnecting
+                ? AppStrings.lobbyJoining
+                : AppStrings.lobbyJoinRoomBtn),
           ),
         ),
       ],
@@ -541,8 +547,8 @@ class _LobbyScreenState extends State<LobbyScreen>
 
         const SizedBox(height: 24),
 
-        const Text(
-          'Enter the room code',
+        Text(
+          AppStrings.lobbyEnterRoomCode,
           style: AppTypography.titleMedium,
         ),
 
@@ -551,10 +557,10 @@ class _LobbyScreenState extends State<LobbyScreen>
         // Room code input
         TextField(
           controller: _roomCodeController,
-          decoration: const InputDecoration(
-            labelText: 'Room Code',
-            prefixIcon: Icon(Icons.vpn_key),
-            hintText: 'ABCD',
+          decoration: InputDecoration(
+            labelText: AppStrings.lobbyRoomCode,
+            prefixIcon: const Icon(Icons.vpn_key),
+            hintText: AppStrings.lobbyRoomCodeHint,
           ),
           textCapitalization: TextCapitalization.characters,
           maxLength: 4,
@@ -581,7 +587,9 @@ class _LobbyScreenState extends State<LobbyScreen>
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.login),
-            label: Text(cubit.state.isConnecting ? 'Joining...' : 'Join Room'),
+            label: Text(cubit.state.isConnecting
+                ? AppStrings.lobbyJoining
+                : AppStrings.lobbyJoinRoomBtn),
           ),
         ),
       ],
@@ -591,7 +599,7 @@ class _LobbyScreenState extends State<LobbyScreen>
   void _createGame(BuildContext context) {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name')),
+        SnackBar(content: Text(AppStrings.errorEnterName)),
       );
       return;
     }
@@ -602,7 +610,7 @@ class _LobbyScreenState extends State<LobbyScreen>
   void _joinDiscoveredRoom(BuildContext context, RoomInfo room) {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name')),
+        SnackBar(content: Text(AppStrings.errorEnterName)),
       );
       return;
     }
@@ -613,7 +621,7 @@ class _LobbyScreenState extends State<LobbyScreen>
   void _joinManual(BuildContext context) {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name')),
+        SnackBar(content: Text(AppStrings.errorEnterName)),
       );
       return;
     }
@@ -623,14 +631,14 @@ class _LobbyScreenState extends State<LobbyScreen>
 
     if (address.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the host IP address')),
+        SnackBar(content: Text(AppStrings.errorEnterIp)),
       );
       return;
     }
 
     if (port <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid port number')),
+        SnackBar(content: Text(AppStrings.errorEnterPort)),
       );
       return;
     }
@@ -641,7 +649,7 @@ class _LobbyScreenState extends State<LobbyScreen>
   void _joinOnline(BuildContext context) {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name')),
+        SnackBar(content: Text(AppStrings.errorEnterName)),
       );
       return;
     }
@@ -650,7 +658,7 @@ class _LobbyScreenState extends State<LobbyScreen>
 
     if (roomCode.length != 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid room code')),
+        SnackBar(content: Text(AppStrings.errorEnterRoomCode)),
       );
       return;
     }
@@ -661,9 +669,9 @@ class _LobbyScreenState extends State<LobbyScreen>
   void _copyToClipboard(BuildContext context, String text) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Copied to clipboard!'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(AppStrings.gameCopied),
+        duration: const Duration(seconds: 1),
       ),
     );
   }

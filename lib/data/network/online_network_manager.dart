@@ -42,6 +42,9 @@ class OnlineNetworkManager implements NetworkManager {
   PlayerActionCallback? onPlayerAction;
 
   @override
+  GameEventCallback? onGameEvent;
+
+  @override
   ConnectionChangeCallback? onConnectionChange;
 
   @override
@@ -145,6 +148,20 @@ class OnlineNetworkManager implements NetworkManager {
           final stateData = message.payload['state'] as Map<String, dynamic>;
           final state = GameState.fromJson(stateData);
           onStateUpdate?.call(state);
+          break;
+
+        case MessageType.gameEvent:
+          final eventType =
+              GameEventType.values[message.payload['eventType'] as int];
+          final eventMessage = message.payload['message'] as String;
+          final eventData = message.payload['data'] as Map<String, dynamic>?;
+
+          final event = GameEvent(
+            type: eventType,
+            message: eventMessage,
+            data: eventData,
+          );
+          onGameEvent?.call(event);
           break;
 
         case MessageType.joinReject:
@@ -270,6 +287,21 @@ class OnlineNetworkManager implements NetworkManager {
     if (!_isHosting) return;
 
     final message = NetworkMessage.stateSync(state);
+    message.payload['roomId'] = _roomId;
+
+    _send(message);
+  }
+
+  /// Broadcast a discrete game event to all clients (via server)
+  @override
+  Future<void> broadcastEvent(GameEvent event) async {
+    if (!_isHosting) return;
+
+    final message = NetworkMessage.gameEvent(
+      event.type,
+      event.message,
+      event.data,
+    );
     message.payload['roomId'] = _roomId;
 
     _send(message);

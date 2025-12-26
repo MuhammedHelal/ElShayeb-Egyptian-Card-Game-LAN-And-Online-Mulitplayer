@@ -11,39 +11,6 @@ import '../entities/entities.dart';
 import '../rules/rules.dart';
 import '../../data/network/network_manager.dart';
 
-/// Game events that can occur
-enum GameEventType {
-  playerJoined,
-  playerLeft,
-  gameStarted,
-  cardDealt,
-  cardDrawn,
-  pairRemoved,
-  playerFinished,
-  roundEnded,
-  gameEnded,
-  turnChanged,
-  stateSync,
-  error,
-}
-
-/// A game event for logging and UI feedback
-class GameEvent {
-  final GameEventType type;
-  final String message;
-  final Map<String, dynamic>? data;
-  final DateTime timestamp;
-
-  GameEvent({
-    required this.type,
-    required this.message,
-    this.data,
-  }) : timestamp = DateTime.now();
-}
-
-/// Callback type for game events
-typedef GameEventCallback = void Function(GameEvent event);
-
 /// Callback type for state updates
 typedef StateUpdateCallback = void Function(GameState state);
 
@@ -70,6 +37,7 @@ class GameController {
     _networkManager.onStateUpdate = _handleNetworkStateUpdate;
     _networkManager.onPlayerAction = _handlePlayerAction;
     _networkManager.onConnectionChange = _handleConnectionChange;
+    _networkManager.onGameEvent = _handleNetworkGameEvent;
   }
 
   /// Current game state
@@ -246,8 +214,28 @@ class GameController {
         _emitEvent(GameEvent(
           type: GameEventType.cardDrawn,
           message: message,
+          data: {
+            'stealerId': drawerId,
+            'victimId': targetId,
+          },
         ));
       }
+
+      // Always emit cardStolen for animation (separate from match/draw event)
+      // Always emit cardStolen for animation (separate from match/draw event)
+      final stealEvent = GameEvent(
+        type: GameEventType.cardStolen,
+        message:
+            '${result.updatedDrawer.name} stole a card from ${result.updatedTarget.name}',
+        data: {
+          'stealerId': drawerId,
+          'victimId': targetId,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+      _emitEvent(stealEvent);
+      // Broadcast this transient event to all clients so they can show the animation
+      _networkManager.broadcastEvent(stealEvent);
 
       // Update state message for synchronization
       _state = _state.copyWith(
@@ -307,6 +295,12 @@ class GameController {
       type: GameEventType.stateSync,
       message: newState.lastAction ?? 'State synchronized',
     ));
+  }
+
+  /// Handle game event from network (client receives from host)
+  void _handleNetworkGameEvent(GameEvent event) {
+    // Re-emit local event
+    _emitEvent(event);
   }
 
   /// Handle player action from network (host receives from client)

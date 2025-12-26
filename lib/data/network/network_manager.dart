@@ -27,6 +27,9 @@ abstract class NetworkManager {
   /// Callback when rooms are discovered (LAN only)
   RoomDiscoveryCallback? onRoomDiscovered;
 
+  /// Callback when a discrete game event is received
+  GameEventCallback? onGameEvent;
+
   /// Whether currently connected
   bool get isConnected;
 
@@ -47,6 +50,9 @@ abstract class NetworkManager {
 
   /// Broadcast state to all clients (host only)
   Future<void> broadcastState(GameState state);
+
+  /// Broadcast a discrete game event to all clients (host only)
+  Future<void> broadcastEvent(GameEvent event);
 
   /// Send an action to the host (client only)
   Future<void> sendAction(Map<String, dynamic> action);

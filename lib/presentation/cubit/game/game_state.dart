@@ -6,6 +6,27 @@ library;
 import 'package:equatable/equatable.dart';
 import '../../../domain/entities/entities.dart';
 
+/// Information about a card steal event for animation
+class CardStealEventInfo extends Equatable {
+  /// ID of the player who stole the card (active player)
+  final String stealerId;
+
+  /// ID of the player who lost the card
+  final String victimId;
+
+  /// Timestamp for animation synchronization
+  final DateTime timestamp;
+
+  const CardStealEventInfo({
+    required this.stealerId,
+    required this.victimId,
+    required this.timestamp,
+  });
+
+  @override
+  List<Object?> get props => [stealerId, victimId, timestamp];
+}
+
 /// Loading status for async operations
 enum LoadingStatus {
   initial,
@@ -89,6 +110,9 @@ class GameUiState extends Equatable {
   final bool showDealAnimation;
   final List<String> matchedCardIds;
 
+  /// Pending card steal event for animation (only for non-active players)
+  final CardStealEventInfo? pendingCardStealEvent;
+
   // Discovery
   final List<RoomInfo> discoveredRooms;
 
@@ -106,6 +130,7 @@ class GameUiState extends Equatable {
     this.currentDrawAction,
     this.showDealAnimation = false,
     this.matchedCardIds = const [],
+    this.pendingCardStealEvent,
     this.discoveredRooms = const [],
   });
 
@@ -162,10 +187,12 @@ class GameUiState extends Equatable {
     DrawActionInfo? currentDrawAction,
     bool? showDealAnimation,
     List<String>? matchedCardIds,
+    CardStealEventInfo? pendingCardStealEvent,
     List<RoomInfo>? discoveredRooms,
     bool clearSelectedCardIndex = false,
     bool clearCurrentDrawAction = false,
     bool clearMatchedCardIds = false,
+    bool clearPendingCardStealEvent = false,
   }) {
     return GameUiState(
       gameState: gameState ?? this.gameState,
@@ -187,6 +214,9 @@ class GameUiState extends Equatable {
       matchedCardIds: clearMatchedCardIds
           ? const []
           : (matchedCardIds ?? this.matchedCardIds),
+      pendingCardStealEvent: clearPendingCardStealEvent
+          ? null
+          : (pendingCardStealEvent ?? this.pendingCardStealEvent),
       discoveredRooms: discoveredRooms ?? this.discoveredRooms,
     );
   }
@@ -206,6 +236,7 @@ class GameUiState extends Equatable {
         currentDrawAction,
         showDealAnimation,
         matchedCardIds,
+        pendingCardStealEvent,
         discoveredRooms,
       ];
 }

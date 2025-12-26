@@ -8,3 +8,4 @@ export 'game_table_widget.dart';
 export 'scoreboard_widget.dart';
 export 'card_selection_overlay.dart';
 export 'dealing_animation_overlay.dart';
+export 'card_steal_animation_overlay.dart';

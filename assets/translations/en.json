@@ -1,0 +1,120 @@
+{
+  "@@locale": "en",
+  "app_name": "El-Shayeb",
+  "app_subtitle": "Egyptian Card Game",
+  "version": "v1.0.0",
+  "mode_local_wifi": "Local Wi-Fi",
+  "mode_local_wifi_desc": "Play with friends on the same network",
+  "mode_online": "Online",
+  "mode_online_desc": "Play with anyone, anywhere",
+  "lobby_local_wifi_game": "Local Wi-Fi Game",
+  "lobby_online_game": "Online Game",
+  "lobby_create_room": "Create Room",
+  "lobby_join_room": "Join Room",
+  "lobby_create_new_room": "Create a New Room",
+  "lobby_host_local": "Host a game on your local network",
+  "lobby_host_online": "Host a game and share the code",
+  "lobby_your_name": "Your Name",
+  "lobby_creating": "Creating...",
+  "lobby_create_room_btn": "Create Room",
+  "lobby_share_with_friends": "Share this with friends:",
+  "lobby_room_code": "Room Code:",
+  "lobby_copy": "Copy",
+  "lobby_copy_code": "Copy Code",
+  "lobby_available_rooms": "Available Rooms",
+  "lobby_no_rooms_found": "No rooms found yet",
+  "lobby_searching_wifi": "Searching for games on your Wi-Fi...",
+  "lobby_or_enter_manually": "Or enter manually",
+  "lobby_ip_address": "IP Address",
+  "lobby_port": "Port",
+  "lobby_joining": "Joining...",
+  "lobby_join_room_btn": "Join Room",
+  "lobby_enter_room_code": "Enter the room code",
+  "lobby_room_code_hint": "ABCD",
+  "lobby_in_game": "In Game",
+  "lobby_full": "Full",
+  "game_waiting_for_players": "Waiting for Players",
+  "game_players_joined": "{count}/6 players joined",
+  "@game_players_joined": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "game_share_address": "Share this address with friends:",
+  "game_share_code": "Share this code with friends:",
+  "game_start": "Start Game",
+  "game_need_players": "Need at least 2 players to start",
+  "game_your_turn": "Tap a player to draw a card!",
+  "game_shuffle_hand": "Shuffle Hand",
+  "game_new_round": "New Round",
+  "game_leave_title": "Leave Game?",
+  "game_leave_message": "Are you sure you want to leave? You will lose your progress.",
+  "game_cancel": "Cancel",
+  "game_leave": "Leave",
+  "game_scoreboard": "Scoreboard",
+  "game_settings": "Settings",
+  "game_leave_game": "Leave Game",
+  "game_copied": "Copied to clipboard!",
+  "scoreboard_title": "Scoreboard",
+  "scoreboard_round_results": "Round Results",
+  "scoreboard_you": "(You)",
+  "scoreboard_shayeb": "The Shayeb! 😭",
+  "scoreboard_pts": "{score} pts",
+  "@scoreboard_pts": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "card_choose_from": "Choose a card from {name}",
+  "@card_choose_from": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "card_cards_count": "{count} cards",
+  "@card_cards_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "card_match": "Match!",
+  "card_no_cards": "No cards!",
+  "settings_title": "Settings",
+  "settings_profile": "Profile",
+  "settings_audio": "Audio",
+  "settings_haptics": "Haptics",
+  "settings_about": "About",
+  "settings_background_music": "Background Music",
+  "settings_music_volume": "Music Volume",
+  "settings_sound_effects": "Sound Effects",
+  "settings_effects_volume": "Effects Volume",
+  "settings_vibration": "Vibration",
+  "settings_vibration_desc": "Haptic feedback for game actions",
+  "settings_player_name": "Player Name",
+  "settings_version": "Version 1.0.0",
+  "settings_game_rules": "Game Rules",
+  "rules_title": "El-Shayeb Rules",
+  "rules_deck_title": "🎴 The Deck",
+  "rules_deck_desc": "Standard deck with only ONE King (the Shayeb). The other three Kings are removed.",
+  "rules_dealing_title": "🃏 Dealing",
+  "rules_dealing_desc": "All cards are dealt one by one until the deck is empty. Each player removes any matching pairs from their hand.",
+  "rules_gameplay_title": "🎮 Gameplay",
+  "rules_gameplay_desc": "On your turn, draw ONE random card from the player next to you. If it matches a card in your hand, remove the pair. If not, keep the card.",
+  "rules_winning_title": "🏆 Winning",
+  "rules_winning_desc": "Players who empty their hand are winners! The last player holding the King (Shayeb) loses.",
+  "rules_scoring_title": "📊 Scoring",
+  "rules_scoring_desc": "1st: +100 | 2nd: +60 | 3rd: +40 | 4th: +20 | 5th: +10\nShayeb (last): -50",
+  "rules_got_it": "Got it!",
+  "error_enter_name": "Please enter your name",
+  "error_enter_ip": "Please enter the host IP address",
+  "error_enter_port": "Please enter a valid port number",
+  "error_enter_room_code": "Please enter a valid room code"
+}

@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/localization/localization_service.dart';
 import '../cubit/cubits.dart';
 import '../theme/app_theme.dart';
 import 'lobby_screen.dart';
@@ -146,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen>
 
                         // Title
                         Text(
-                          'El-Shayeb',
+                          AppStrings.appName,
                           style: AppTypography.displayLarge.copyWith(
                             shadows: [
                               Shadow(
@@ -159,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Egyptian Card Game',
+                          AppStrings.appSubtitle,
                           style: AppTypography.bodyLarge.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -182,8 +183,8 @@ class _HomeScreenState extends State<HomeScreen>
                             // LAN Mode
                             _GameModeButton(
                               icon: Icons.wifi,
-                              title: 'Local Wi-Fi',
-                              subtitle: 'Play with friends on the same network',
+                              title: AppStrings.modeLocalWifi,
+                              subtitle: AppStrings.modeLocalWifiDesc,
                               onTap: () => _startGame(context, GameMode.lan),
                             ),
 
@@ -192,8 +193,8 @@ class _HomeScreenState extends State<HomeScreen>
                             // Online Mode
                             _GameModeButton(
                               icon: Icons.public,
-                              title: 'Online',
-                              subtitle: 'Play with anyone, anywhere',
+                              title: AppStrings.modeOnline,
+                              subtitle: AppStrings.modeOnlineDesc,
                               onTap: () => _startGame(context, GameMode.online),
                               isSecondary: true,
                             ),
@@ -209,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen>
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
-                      'v1.0.0',
+                      AppStrings.version,
                       style: AppTypography.bodyMedium.copyWith(
                         color: AppColors.textSecondary.withOpacity(0.5),
                       ),
