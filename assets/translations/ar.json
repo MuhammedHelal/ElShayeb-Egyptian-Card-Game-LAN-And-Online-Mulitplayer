@@ -1,0 +1,138 @@
+{
+    "@@locale": "ar",
+    "app_name": "الشايب",
+    "app_subtitle": "لعبة كوتشينة مصرية",
+    "version": "v1.0.0",
+    "mode_local_wifi": "واي فاي محلي",
+    "mode_local_wifi_desc": "العب مع صحابك على نفس الشبكة",
+    "mode_online": "أونلاين",
+    "mode_online_desc": "العب مع أي حد في أي مكان",
+    "lobby_local_wifi_game": "لعبة واي فاي محلي",
+    "lobby_online_game": "لعبة أونلاين",
+    "lobby_create_room": "إنشاء غرفة",
+    "lobby_join_room": "دخول غرفة",
+    "lobby_create_new_room": "إنشاء غرفة جديدة",
+    "lobby_host_local": "استضيف لعبة على شبكتك المحلية",
+    "lobby_host_online": "استضيف لعبة وشارك الكود",
+    "lobby_your_name": "اسمك",
+    "lobby_creating": "جاري الإنشاء...",
+    "lobby_create_room_btn": "إنشاء غرفة",
+    "lobby_share_with_friends": "شارك ده مع صحابك:",
+    "lobby_room_code": "كود الغرفة:",
+    "lobby_copy": "نسخ",
+    "lobby_copy_code": "نسخ الكود",
+    "lobby_available_rooms": "الغرف المتاحة",
+    "lobby_no_rooms_found": "مفيش غرف لسه 🔍",
+    "lobby_searching_wifi": "بندور على ألعاب على الواي فاي...",
+    "lobby_or_enter_manually": "أو اكتب يدوي",
+    "lobby_ip_address": "عنوان IP",
+    "lobby_port": "البورت",
+    "lobby_joining": "جاري الدخول...",
+    "lobby_join_room_btn": "دخول الغرفة",
+    "lobby_enter_room_code": "اكتب كود الغرفة",
+    "lobby_room_code_hint": "ABCD",
+    "lobby_in_game": "في اللعبة",
+    "lobby_full": "مليانة",
+    "game_waiting_for_players": "مستنيين اللعيبة 🎮",
+    "game_players_joined": "{count}/6 لاعبين دخلوا",
+    "@game_players_joined": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "game_share_address": "شارك العنوان ده مع صحابك:",
+    "game_share_code": "شارك الكود ده مع صحابك:",
+    "game_start": "يلا نبدأ! 🚀",
+    "game_need_players": "محتاجين لاعبين تانيين على الأقل",
+    "game_your_turn": "دورك! اختار لاعب تسحب منه كارت 👆",
+    "game_shuffle_hand": "خبط الكروت",
+    "game_new_round": "جولة جديدة",
+    "game_leave_title": "تمشي من اللعبة؟",
+    "game_leave_message": "متأكد؟ هتخسر كل اللي عملته!",
+    "game_cancel": "لأ خليني",
+    "game_leave": "أيوه امشي",
+    "game_scoreboard": "النتيجة",
+    "game_settings": "الإعدادات",
+    "game_leave_game": "الخروج من اللعبة",
+    "game_copied": "تم النسخ! 📋",
+    "scoreboard_title": "النتيجة",
+    "scoreboard_round_results": "نتيجة الجولة",
+    "scoreboard_you": "(انت)",
+    "scoreboard_shayeb": "الشايب! 😭👴",
+    "scoreboard_pts": "{score} نقطة",
+    "@scoreboard_pts": {
+        "placeholders": {
+            "score": {
+                "type": "int"
+            }
+        }
+    },
+    "card_choose_from": "اختار كارت من {name}",
+    "@card_choose_from": {
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "card_cards_count": "{count} كروت",
+    "@card_cards_count": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "card_match": "ماتش! 🎉",
+    "card_no_cards": "مفيش كروت! 🃏",
+    "settings_title": "الإعدادات",
+    "settings_profile": "البروفايل",
+    "settings_audio": "الصوت",
+    "settings_haptics": "الاهتزاز",
+    "settings_about": "عن اللعبة",
+    "settings_background_music": "موسيقى الخلفية",
+    "settings_music_volume": "صوت الموسيقى",
+    "settings_sound_effects": "المؤثرات الصوتية",
+    "settings_effects_volume": "صوت المؤثرات",
+    "settings_vibration": "الاهتزاز",
+    "settings_vibration_desc": "اهتزاز مع حركات اللعبة",
+    "settings_player_name": "اسم اللاعب",
+    "settings_version": "الإصدار 1.0.0",
+    "settings_game_rules": "قواعد اللعبة",
+    "rules_title": "قواعد الشايب",
+    "rules_deck_title": "🎴 الكوتشينة",
+    "rules_deck_desc": "كوتشينة عادية بس فيها شايب واحد بس (ملك واحد). التلاتة ملوك التانيين اتشالوا.",
+    "rules_dealing_title": "🃏 التوزيع",
+    "rules_dealing_desc": "الكروت بتتوزع كارت كارت لحد ما تخلص. كل لاعب يشيل أي كروت متطابقة من إيده.",
+    "rules_gameplay_title": "🎮 طريقة اللعب",
+    "rules_gameplay_desc": "في دورك، اسحب كارت عشوائي من اللاعب اللي جنبك. لو طابق كارت عندك، شيلهم. لو لأ، خليه معاك.",
+    "rules_winning_title": "🏆 الفوز",
+    "rules_winning_desc": "اللي يخلص كروته الأول يكسب! واللي يفضل معاه الشايب (الملك) في الآخر يخسر 😭",
+    "rules_scoring_title": "📊 النقط",
+    "rules_scoring_desc": "الأول: +100 | التاني: +60 | التالت: +40 | الرابع: +20 | الخامس: +10\nالشايب (الأخير): -50",
+    "rules_got_it": "فهمت! 👍",
+    "error_enter_name": "اكتب اسمك الأول",
+    "error_enter_ip": "اكتب عنوان IP بتاع الهوست",
+    "error_enter_port": "اكتب رقم بورت صحيح",
+    "error_enter_room_code": "اكتب كود الغرفة صح",
+    "settings_language": "اللغة",
+    "language_english": "English (الإنجليزية)",
+    "language_arabic": "العربية",
+    "event_player_created_room": "{name} أنشأ الغرفة",
+    "event_player_joining": "{name} بينضم...",
+    "event_player_joined": "{name} دخل اللعبة",
+    "event_player_made_pair": "{name} عمل ماتش مع {card}!",
+    "event_player_drew_card": "{name} سحب كارت",
+    "event_player_stole_card": "{name} سرق كارت من {target}",
+    "event_player_finished": "{name} خلص!",
+    "event_player_shuffled": "{name} خبط كروته",
+    "event_player_disconnected": "{name} اتقطع",
+    "event_game_started": "اللعبة بدأت!",
+    "event_round_ended": "الجولة خلصت!",
+    "event_new_round_started": "جولة جديدة بدأت!",
+    "event_round_started": "الجولة بدأت...",
+    "event_state_sync": "تم المزامنة",
+    "event_invalid_draw": "سحب غير صحيح"
+}
