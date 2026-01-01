@@ -71,76 +71,78 @@ class _CardSelectionOverlayState extends State<CardSelectionOverlay>
         child: SafeArea(
           child: Directionality(
             textDirection: TextDirection.ltr,
-            child: Column(
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      // Close button
-                      Align(
-                        alignment: Alignment.topRight,
-                        child: IconButton(
-                          onPressed: widget.onCancel,
-                          icon: const Icon(Icons.close, size: 28),
-                          style: IconButton.styleFrom(
-                            backgroundColor: AppColors.surface,
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        // Close button
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            onPressed: widget.onCancel,
+                            icon: const Icon(Icons.close, size: 28),
+                            style: IconButton.styleFrom(
+                              backgroundColor: AppColors.surface,
+                            ),
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-                      // Player info
-                      _buildPlayerInfo(),
+                        // Player info
+                        _buildPlayerInfo(),
 
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
-                      // Instructions
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.goldGradient,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.touch_app,
-                                color: AppColors.textDark),
-                            const SizedBox(width: 8),
-                            Text(
-                              AppStrings.gameYourTurn,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textDark,
-                                fontSize: 16,
+                        // Instructions
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: AppColors.goldGradient,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.touch_app,
+                                  color: AppColors.textDark),
+                              const SizedBox(width: 8),
+                              Text(
+                                AppStrings.gameYourTurn,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textDark,
+                                  fontSize: 16,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                // Cards area
-                Expanded(
-                  child: Center(
+                  // Cards area
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
                     child: ScaleTransition(
                       scale: _scaleAnimation,
                       child: _buildCardFan(cardCount),
                     ),
                   ),
-                ),
 
-                // Bottom padding
-                const SizedBox(height: 80),
-              ],
+                  // Bottom padding
+                  const SizedBox(height: 80),
+                ],
+              ),
             ),
           ),
         ),
@@ -215,7 +217,7 @@ class _CardSelectionOverlayState extends State<CardSelectionOverlay>
     final double startOffset = -totalWidth / 2 + cardWidth / 2;
 
     return SizedBox(
-      height: 200,
+      height: 250,
       child: Stack(
         alignment: Alignment.center,
         clipBehavior: Clip.none,
@@ -247,7 +249,7 @@ class _CardSelectionOverlayState extends State<CardSelectionOverlay>
                   angle: rotation,
                   child: Container(
                     width: cardWidth,
-                    height: cardWidth * 1.4,
+                    height: cardWidth * 1.45,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: [
@@ -398,52 +400,61 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   Widget build(BuildContext context) {
     return Material(
       color: Colors.black.withOpacity(0.8),
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_revealController, _matchController]),
-        builder: (context, child) {
-          return Center(
-            child: Directionality(
-              textDirection: TextDirection.ltr,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Title
-                  Text(
-                    widget.showMatch ? AppStrings.cardMatch : 'You drew:',
-                    style: AppTypography.headlineMedium.copyWith(
-                      color: widget.showMatch
-                          ? AppColors.secondary
-                          : AppColors.textPrimary,
-                    ),
+      child: SafeArea(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_revealController, _matchController]),
+          builder: (context, child) {
+            return Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(vertical: 40),
+                child: Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Title
+                      Text(
+                        widget.showMatch ? AppStrings.cardMatch : 'You drew:',
+                        style: AppTypography.headlineMedium.copyWith(
+                          color: widget.showMatch
+                              ? AppColors.secondary
+                              : AppColors.textPrimary,
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Cards
+                      if (widget.showMatch && widget.matchedCard != null)
+                        _buildMatchDisplay()
+                      else
+                        _buildSingleCard(),
+
+                      const SizedBox(height: 32),
+
+                      // Card name
+                      Text(
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        widget.drawnCard.displayName,
+                        style: AppTypography.displayMedium.copyWith(
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(height: 32),
-
-                  // Cards
-                  if (widget.showMatch && widget.matchedCard != null)
-                    _buildMatchDisplay()
-                  else
-                    _buildSingleCard(),
-
-                  const SizedBox(height: 32),
-
-                  // Card name
-                  Text(
-                    widget.drawnCard.displayName,
-                    style: AppTypography.displayMedium.copyWith(
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildSingleCard() {
+    const double cardWidth = 120;
+    const double cardHeight = cardWidth * 1.45;
     return Transform(
       alignment: Alignment.center,
       transform: Matrix4.identity()
@@ -453,7 +464,8 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
           ? const PlayingCardWidget(
               card: null,
               faceUp: false,
-              width: 120,
+              width: cardWidth,
+              height: cardHeight,
             )
           : Transform(
               alignment: Alignment.center,
@@ -461,7 +473,8 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
               child: PlayingCardWidget(
                 card: widget.drawnCard,
                 faceUp: true,
-                width: 120,
+                width: cardWidth,
+                height: cardHeight,
               ),
             ),
     );
@@ -495,6 +508,7 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                   card: widget.drawnCard,
                   faceUp: true,
                   width: 100,
+                  height: 145,
                   isHighlighted: true,
                   highlightColor: Colors.orange,
                 ),
@@ -539,6 +553,7 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                   card: widget.matchedCard!,
                   faceUp: true,
                   width: 100,
+                  height: 145,
                   isHighlighted: true,
                   highlightColor: Colors.orange,
                 ),

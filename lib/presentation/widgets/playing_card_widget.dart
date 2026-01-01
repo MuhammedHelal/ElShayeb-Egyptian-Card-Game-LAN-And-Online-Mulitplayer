@@ -20,7 +20,7 @@ class PlayingCardWidget extends StatefulWidget {
   final bool showMatchAnimation;
   final VoidCallback? onTap;
   final double width;
-  final double height;
+  final double? height;
 
   const PlayingCardWidget({
     super.key,
@@ -32,7 +32,7 @@ class PlayingCardWidget extends StatefulWidget {
     this.showMatchAnimation = false,
     this.onTap,
     this.width = 70,
-    this.height = 100,
+    this.height,
   });
 
   @override
@@ -118,7 +118,7 @@ class _PlayingCardWidgetState extends State<PlayingCardWidget>
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       width: widget.width,
-      height: widget.height,
+      height: widget.height ?? (widget.width * 1.45),
       transform: Matrix4.identity()
         ..translate(0.0, widget.isSelected ? -10.0 : 0.0),
       decoration: BoxDecoration(
@@ -244,7 +244,7 @@ class _PlayingCardWidgetState extends State<PlayingCardWidget>
   Widget _buildCardBack() {
     return Container(
       width: widget.width,
-      height: widget.height,
+      height: widget.height ?? (widget.width * 1.45),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         gradient: const LinearGradient(
