@@ -1,7 +1,4 @@
-/// Presentation Layer - Home Screen
-///
-/// Main menu with mode selection and navigation.
-library;
+// Presentation Layer - Home Screen
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';

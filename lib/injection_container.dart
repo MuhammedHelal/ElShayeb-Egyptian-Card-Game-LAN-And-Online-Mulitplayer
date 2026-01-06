@@ -1,7 +1,5 @@
-/// Dependency Injection Container
-///
-/// Configures all dependencies using get_it.
-/// Provides singleton instances for services and managers.
+/// Dependency Injection Container to init get_it
+
 library;
 
 import 'package:get_it/get_it.dart';
@@ -18,13 +16,9 @@ final getIt = GetIt.instance;
 
 /// Initialize all dependencies
 Future<void> initDependencies() async {
-  // ============ External ============
-
   // SharedPreferences
   final sharedPrefs = await SharedPreferences.getInstance();
   getIt.registerSingleton<SharedPreferences>(sharedPrefs);
-
-  // ============ Core ============
 
   // Settings Repository
   getIt.registerLazySingleton<SettingsRepository>(
@@ -36,8 +30,6 @@ Future<void> initDependencies() async {
 
   // Haptic Manager
   getIt.registerLazySingleton<HapticManager>(() => HapticManager());
-
-  // ============ Domain ============
 
   // Game Rules Engine
   getIt.registerLazySingleton<GameRulesEngine>(() => GameRulesEngine());

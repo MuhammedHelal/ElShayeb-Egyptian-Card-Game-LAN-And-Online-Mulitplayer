@@ -1,7 +1,5 @@
 /// Presentation Layer - App Theme
-///
-/// Professional dark theme with card game aesthetics.
-/// Green table feel with gold accents.
+
 library;
 
 import 'package:flutter/material.dart';

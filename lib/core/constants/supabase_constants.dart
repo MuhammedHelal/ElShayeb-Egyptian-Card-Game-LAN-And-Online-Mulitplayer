@@ -1,9 +1,3 @@
-/// Core - Supabase Constants
-///
-/// Configuration for Supabase connection.
-///
-library;
-
 class SupabaseConstants {
   static const String url = 'https://cusfjqfiurvekppweuaq.supabase.co';
   static const String anonKey =
