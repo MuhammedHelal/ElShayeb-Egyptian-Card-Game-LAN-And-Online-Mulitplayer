@@ -1,14 +1,9 @@
-/// Core - Audio Manager
-///
-/// Centralized audio management for music and sound effects.
-/// Supports muting, volume control, and proper resource management.
-library;
-
+// Core - Audio Manager
+// Centralized audio management for music and sound effects.
 import 'dart:developer';
 
 import 'package:audioplayers/audioplayers.dart';
 
-/// Sound effect types
 enum SoundEffect {
   deal,
   play,

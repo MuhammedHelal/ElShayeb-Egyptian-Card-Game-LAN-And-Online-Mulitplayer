@@ -16,8 +16,6 @@ import '../../domain/entities/room_info.dart';
 import '../cubit/cubits.dart';
 import '../theme/app_theme.dart';
 import 'game_screen.dart';
-
-/// Lobby screen for creating/joining games
 class LobbyScreen extends StatefulWidget {
   const LobbyScreen({super.key});
 

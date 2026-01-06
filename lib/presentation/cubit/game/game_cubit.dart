@@ -23,7 +23,6 @@ enum GameMode {
   online,
 }
 
-/// Game Cubit for managing UI state
 class GameCubit extends Cubit<GameUiState> {
   final AudioManager _audioManager;
   final HapticManager _hapticManager;

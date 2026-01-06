@@ -1,19 +1,15 @@
-/// Domain Layer - Deck Builder
-///
-/// Creates the El-Shayeb deck: standard 52-card deck with 3 Kings removed.
-/// Only ONE King (the Shayeb) remains in the deck.
-library;
+// Domain Layer - Deck Builder
+// Creates the El-Shayeb deck: standard 52-card deck with 3 Kings removed.
+// Only ONE King (the Shayeb) remains in the deck.
 
 import 'dart:math';
 import '../entities/card.dart';
 
-/// Builds and manages the El-Shayeb deck
 class DeckBuilder {
   final Random _random;
 
   DeckBuilder({Random? random}) : _random = random ?? Random();
 
-  /// Creates the El-Shayeb deck (49 cards: 52 - 3 Kings)
   /// The Shayeb (single King) is kept, all other Kings are removed.
   List<PlayingCard> createDeck() {
     final List<PlayingCard> deck = [];

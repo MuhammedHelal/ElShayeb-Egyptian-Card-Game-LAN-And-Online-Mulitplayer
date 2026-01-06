@@ -1,7 +1,5 @@
-/// Domain Layer - Room Info Entity
-///
-/// Represents discoverable room information for LAN lobby browsing.
-library;
+// Domain Layer - Room Info Entity
+// Represents discoverable room information for LAN lobby browsing.
 
 import 'package:equatable/equatable.dart';
 

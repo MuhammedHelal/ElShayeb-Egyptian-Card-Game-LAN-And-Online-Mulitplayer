@@ -1,7 +1,5 @@
-/// Domain Layer - Game Event Entity
-///
-/// Represents a discrete event in the game for logging, UI feedback, and animation.
-library;
+// Domain Layer - Game Event Entity
+// Represents a discrete event in the game for logging, UI feedback, and animation.
 
 /// Game events that can occur
 enum GameEventType {

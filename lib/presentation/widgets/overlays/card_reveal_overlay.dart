@@ -10,7 +10,6 @@ import '../../../domain/entities/entities.dart';
 import '../../theme/app_theme.dart';
 import '../common/playing_card_widget.dart';
 
-/// Overlay for revealing a drawn card and showing match animation
 class CardRevealOverlay extends StatefulWidget {
   final PlayingCard drawnCard;
   final PlayingCard? matchedCard;

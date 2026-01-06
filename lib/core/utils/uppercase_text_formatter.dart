@@ -1,9 +1,7 @@
-/// Core - Text Formatters
-library;
+// Core - Text Formatters
 
 import 'package:flutter/services.dart';
 
-/// Text formatter to convert to uppercase
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(

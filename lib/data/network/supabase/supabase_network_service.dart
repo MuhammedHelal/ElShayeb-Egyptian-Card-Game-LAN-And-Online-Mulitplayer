@@ -40,14 +40,6 @@ class SupabaseNetworkService implements OnlineNetworkService {
   @override
   Future<void> initialize() async {
     try {
-      // Initialize Supabase if not already
-      // NOTE: Supabase.initialize usually happens in main.dart
-      // Here we grab the instance or initialize a local client if DI is used differently
-
-      // For this implementation, we assume Supabase.instance is available after main init,
-      // OR we are provided the client via constructor/DI.
-      // Since we need to register it in DI, we'll try to get the instance.
-
       try {
         _client = Supabase.instance.client;
       } catch (_) {
@@ -83,9 +75,7 @@ class SupabaseNetworkService implements OnlineNetworkService {
 
     try {
       final roomId = initialGameState['roomCode'];
-      // final hostId = initialGameState['hostId']; // NOT USED for DB ownership
 
-      // Use the actual Supabase Auth ID for the database ownership
       // This ensures RLS policies work correctly (host_id = auth.uid())
       final dbHostId = userId;
 

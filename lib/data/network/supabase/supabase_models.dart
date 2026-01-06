@@ -1,7 +1,5 @@
-/// Data Layer - Supabase Models
-///
-/// DTOs for Supabase interactions.
-library;
+// Data Layer - Supabase Models
+// DTOs for Supabase interactions.
 
 class SupabaseEvent {
   final String type;

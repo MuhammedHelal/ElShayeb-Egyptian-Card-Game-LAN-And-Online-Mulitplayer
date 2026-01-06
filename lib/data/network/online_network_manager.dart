@@ -1,8 +1,4 @@
-/// Data Layer - Online Network Manager (Adapter)
-///
-/// Adapts the generic NetworkManager interface (used by Game Controller)
-/// to the OnlineNetworkService interface (implemented by Supabase/Firebase).
-library;
+
 
 import 'dart:async';
 import 'dart:developer';

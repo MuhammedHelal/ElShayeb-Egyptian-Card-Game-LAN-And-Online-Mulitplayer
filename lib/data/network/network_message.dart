@@ -1,35 +1,26 @@
-/// Data Layer - Network Messages
-///
-/// Defines the protocol for network communication between host and clients.
-library;
+
+// Defines the protocol for network communication between host and clients.
 
 import 'dart:convert';
 import '../../domain/entities/entities.dart';
 
-/// Message types for the network protocol
 enum MessageType {
-  /// Host broadcasts full game state
   stateSync,
 
   /// Client sends an action (draw card)
   playerAction,
 
-  /// Client requests to join
   joinRequest,
 
-  /// Host confirms join
   joinConfirm,
 
-  /// Host rejects join
   joinReject,
 
   /// Heartbeat to check connection
   heartbeat,
 
-  /// Player disconnected
   disconnected,
 
-  /// Error message
   error,
 
   /// Discrete game event (like card stolen animation)

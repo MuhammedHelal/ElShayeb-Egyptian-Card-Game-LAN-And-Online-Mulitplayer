@@ -1,7 +1,5 @@
-/// Domain Layer - Entities Barrel
-///
-/// Exports all domain entities for easy importing.
-library;
+// Domain Layer - Entities Barrel
+// Exports all domain entities for easy importing.
 
 export 'card.dart';
 export 'player.dart';

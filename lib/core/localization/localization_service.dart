@@ -1,8 +1,4 @@
-/// Core - Localization Service
-///
-/// Centralized localization wrapper for dependency injection.
-/// Provides testable and mockable interface for translations.
-library;
+// Centralized localization wrapper for dependency injection.
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';

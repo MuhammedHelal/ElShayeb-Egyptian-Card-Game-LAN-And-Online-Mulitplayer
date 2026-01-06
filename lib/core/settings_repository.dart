@@ -1,11 +1,10 @@
-/// Core - Settings Repository
-///
-/// Persists app settings using SharedPreferences.
-library;
+// Core - Settings Repository
+//
+// Persists app settings using SharedPreferences.
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Keys for SharedPreferences
+// Keys for SharedPreferences
 class _SettingsKeys {
   static const musicEnabled = 'music_enabled';
   static const sfxEnabled = 'sfx_enabled';

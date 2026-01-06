@@ -1,8 +1,3 @@
-/// Core - Haptic Feedback Manager
-///
-/// Manages vibration feedback for game actions.
-library;
-
 import 'dart:developer';
 
 import 'package:vibration/vibration.dart';

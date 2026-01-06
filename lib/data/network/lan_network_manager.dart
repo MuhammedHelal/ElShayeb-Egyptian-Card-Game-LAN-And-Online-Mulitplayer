@@ -1,7 +1,7 @@
 /// Data Layer - LAN Network Manager
 ///
 /// TCP socket-based networking for local Wi-Fi multiplayer.
-/// Host-authoritative architecture:
+/// Host architecture:
 /// - Host creates a TCP server
 /// - Clients connect via TCP socket
 /// - Host validates all actions and broadcasts state

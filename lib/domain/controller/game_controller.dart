@@ -1,9 +1,7 @@
-/// Application Layer - Game Controller
-///
-/// Orchestrates game flow between rules engine and networking.
-/// This is the central coordinator that doesn't contain game logic itself
-/// but delegates to the rules engine for all decisions.
-library;
+// Application Layer - Game Controller
+// Orchestrates game flow between rules engine and networking.
+// This is the central coordinator that doesn't contain game logic itself
+// but delegates to the rules engine for all decisions.
 
 import 'dart:async';
 import 'dart:developer';
@@ -12,10 +10,8 @@ import '../entities/entities.dart';
 import '../rules/rules.dart';
 import '../../data/network/network_manager.dart';
 
-/// Callback type for state updates
 typedef StateUpdateCallback = void Function(GameState state);
 
-/// Game controller that coordinates all game components
 class GameController {
   final GameRulesEngine _rulesEngine;
   final NetworkManager _networkManager;

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../cubit/cubits.dart';
-import '../../../domain/entities/entities.dart';
 import '../widgets.dart';
 
 // Main game view with table, overlays, and player interactions

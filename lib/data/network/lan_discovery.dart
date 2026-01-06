@@ -1,7 +1,6 @@
 /// Data Layer - LAN Room Discovery
 ///
 /// Uses UDP broadcast to discover game rooms on the local network.
-/// This is more reliable than mDNS on most Android devices.
 library;
 
 import 'dart:async';
@@ -11,10 +10,8 @@ import 'dart:io';
 
 import '../../domain/entities/room_info.dart';
 
-/// Callback for discovered rooms
 typedef RoomDiscoveredCallback = void Function(RoomInfo room);
 
-/// LAN room discovery using UDP broadcast
 class LanDiscovery {
   static const int discoveryPort = 41234;
   static const String broadcastMessage = 'ELSHAYEB_DISCOVER';
