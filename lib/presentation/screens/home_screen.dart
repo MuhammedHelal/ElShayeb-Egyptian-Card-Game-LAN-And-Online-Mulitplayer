@@ -1,6 +1,8 @@
 // Presentation Layer - Home Screen
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:elshayeb/core/constants/app_consts.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -195,7 +197,17 @@ class _HomeScreenState extends State<HomeScreen>
                               onTap: () => _startGame(context, GameMode.lan),
                             ),
 
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 8),
+                            AppConsts.isTestMode
+                                ? _GameModeButton(
+                                    icon: Icons.wifi,
+                                    title: AppStrings.modeLocalWifi,
+                                    subtitle: AppStrings.modeLocalWifiDesc,
+                                    onTap: () =>
+                                        FirebaseCrashlytics.instance.crash(),
+                                  )
+                                : const SizedBox(),
+                            const SizedBox(height: 8),
 
                             // Online Mode
                             _GameModeButton(

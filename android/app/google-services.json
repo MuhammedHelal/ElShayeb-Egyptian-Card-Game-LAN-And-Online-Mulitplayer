@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "219952833292",
+    "project_id": "elshayeb-9d84a",
+    "storage_bucket": "elshayeb-9d84a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:219952833292:android:65702f2ae6da0728bf1f29",
+        "android_client_info": {
+          "package_name": "com.mdev.elshayeb"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDilVxSCTNVze_j4v8-UYPLIuLD5KHVTes"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
