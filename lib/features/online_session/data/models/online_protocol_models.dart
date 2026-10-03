@@ -14,11 +14,27 @@ class OnlineLobbyPlayerModel {
   });
 
   factory OnlineLobbyPlayerModel.fromJson(Map<String, dynamic> json) {
+    final userId = json['userId'];
+    final name = json['name'];
+    final avatarId = json['avatarId'];
+    final isConnected = json['connected'];
+    if (userId is! String ||
+        userId.isEmpty ||
+        name is! String ||
+        name.isEmpty ||
+        avatarId is! String ||
+        avatarId.isEmpty ||
+        isConnected is! bool) {
+      throw const OnlineProtocolException(
+        'invalid_snapshot',
+        'The server lobby included an invalid player.',
+      );
+    }
     return OnlineLobbyPlayerModel(
-      userId: json['userId'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      avatarId: json['avatarId'] as String? ?? '',
-      isConnected: json['connected'] as bool? ?? false,
+      userId: userId,
+      name: name,
+      avatarId: avatarId,
+      isConnected: isConnected,
     );
   }
 
@@ -60,13 +76,35 @@ class OnlineLobbyModel {
         'The server lobby did not include a player list.',
       );
     }
+    if (rawPlayers.any((player) => player is! Map<String, dynamic>)) {
+      throw const OnlineProtocolException(
+        'invalid_snapshot',
+        'The server lobby included an invalid player.',
+      );
+    }
+    final roomCode = payload['roomCode'];
+    final stateVersion = message['stateVersion'];
+    final localUserId = payload['localUserId'];
+    final canStart = payload['canStart'];
+    if (roomCode is! String ||
+        !RegExp(r'^[A-Z0-9]{6}$').hasMatch(roomCode) ||
+        stateVersion is! int ||
+        stateVersion < 0 ||
+        localUserId is! String ||
+        localUserId.isEmpty ||
+        canStart is! bool) {
+      throw const OnlineProtocolException(
+        'invalid_snapshot',
+        'The server sent an incomplete lobby snapshot.',
+      );
+    }
     return OnlineLobbyModel(
-      roomCode: payload['roomCode'] as String? ?? '',
-      stateVersion: message['stateVersion'] as int? ?? 0,
-      localUserId: payload['localUserId'] as String? ?? '',
-      canStart: payload['canStart'] as bool? ?? false,
+      roomCode: roomCode,
+      stateVersion: stateVersion,
+      localUserId: localUserId,
+      canStart: canStart,
       players: rawPlayers
-          .whereType<Map<String, dynamic>>()
+          .cast<Map<String, dynamic>>()
           .map(OnlineLobbyPlayerModel.fromJson)
           .toList(growable: false),
     );

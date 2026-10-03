@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -35,8 +36,9 @@ class _OnlineSessionTestScreenState extends State<OnlineSessionTestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.locale;
     return Scaffold(
-      appBar: AppBar(title: const Text('Cloudflare Online Lobby')),
+      appBar: AppBar(title: Text('online_lobby_title'.tr())),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.tableGradient),
         child: SafeArea(
@@ -51,9 +53,9 @@ class _OnlineSessionTestScreenState extends State<OnlineSessionTestScreen> {
                     controller: _nameController,
                     maxLength: 24,
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Player name',
-                      hintText: 'Enter your name',
+                    decoration: InputDecoration(
+                      labelText: 'online_player_name'.tr(),
+                      hintText: 'online_player_name_hint'.tr(),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -65,9 +67,9 @@ class _OnlineSessionTestScreenState extends State<OnlineSessionTestScreen> {
                       FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
                       _UpperCaseTextFormatter(),
                     ],
-                    decoration: const InputDecoration(
-                      labelText: 'Room code',
-                      hintText: 'ABC123',
+                    decoration: InputDecoration(
+                      labelText: 'online_room_code'.tr(),
+                      hintText: 'online_room_code_hint'.tr(),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -79,7 +81,7 @@ class _OnlineSessionTestScreenState extends State<OnlineSessionTestScreen> {
                               ? null
                               : () => _createRoom(context),
                           icon: const Icon(Icons.add),
-                          label: const Text('Create'),
+                          label: Text('online_create'.tr()),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -89,16 +91,15 @@ class _OnlineSessionTestScreenState extends State<OnlineSessionTestScreen> {
                               ? null
                               : () => _joinRoom(context),
                           icon: const Icon(Icons.login),
-                          label: const Text('Join'),
+                          label: Text('online_join'.tr()),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
                   switch (state) {
-                    OnlineSessionInitial() => const _InfoCard(
-                        message:
-                            'Create a server-owned room or join from another device.',
+                    OnlineSessionInitial() => _InfoCard(
+                        message: 'online_lobby_intro'.tr(),
                       ),
                     OnlineSessionLoading() => const Center(
                         child: Padding(
@@ -126,7 +127,7 @@ class _OnlineSessionTestScreenState extends State<OnlineSessionTestScreen> {
   void _createRoom(BuildContext context) {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      _showMessage(context, 'Enter your player name first.');
+      _showMessage(context, 'online_error_name'.tr());
       return;
     }
     context.read<OnlineSessionCubit>().createRoom(
@@ -139,7 +140,7 @@ class _OnlineSessionTestScreenState extends State<OnlineSessionTestScreen> {
     final name = _nameController.text.trim();
     final roomCode = _roomCodeController.text.trim();
     if (name.isEmpty || roomCode.length != 6) {
-      _showMessage(context, 'Enter a name and a six-character room code.');
+      _showMessage(context, 'online_error_join_fields'.tr());
       return;
     }
     context.read<OnlineSessionCubit>().joinRoom(
@@ -164,20 +165,23 @@ class _ConnectionBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
       OnlineServerConnectionStatus.disconnected => (
-          'Disconnected',
+          'online_status_disconnected'.tr(),
           AppColors.textSecondary
         ),
-      OnlineServerConnectionStatus.connecting => ('Connecting', AppColors.info),
+      OnlineServerConnectionStatus.connecting => (
+          'online_status_connecting'.tr(),
+          AppColors.info,
+        ),
       OnlineServerConnectionStatus.authenticating => (
-          'Authenticating',
+          'online_status_authenticating'.tr(),
           AppColors.warning
         ),
       OnlineServerConnectionStatus.connected => (
-          'Connected',
+          'online_status_connected'.tr(),
           AppColors.success
         ),
       OnlineServerConnectionStatus.reconnecting => (
-          'Reconnecting',
+          'online_status_reconnecting'.tr(),
           AppColors.warning
         ),
     };
@@ -219,7 +223,9 @@ class _LobbyCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Room ${lobby.roomCode}',
+                    'online_room_title'.tr(
+                      namedArgs: {'code': lobby.roomCode},
+                    ),
                     style: AppTypography.titleLarge,
                   ),
                 ),
@@ -227,14 +233,18 @@ class _LobbyCard extends StatelessWidget {
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: lobby.roomCode));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Room code copied.')),
+                      SnackBar(content: Text('online_room_code_copied'.tr())),
                     );
                   },
                   icon: const Icon(Icons.copy),
                 ),
               ],
             ),
-            Text('Server state version ${lobby.stateVersion}'),
+            Text(
+              'online_server_version'.tr(
+                namedArgs: {'version': lobby.stateVersion.toString()},
+              ),
+            ),
             const Divider(height: 24),
             for (final player in lobby.players)
               ListTile(
@@ -247,21 +257,23 @@ class _LobbyCard extends StatelessWidget {
                 ),
                 title: Text(player.name),
                 subtitle: Text(
-                  player.userId == lobby.localUserId ? 'You' : 'Player',
+                  player.userId == lobby.localUserId
+                      ? 'online_you'.tr()
+                      : 'online_player'.tr(),
                 ),
               ),
             const SizedBox(height: 8),
             Text(
               lobby.canStart
-                  ? 'Lobby verified. Gameplay rules are the next server milestone.'
-                  : 'Waiting for players. The room remains alive if its creator disconnects.',
+                  ? 'online_lobby_verified'.tr()
+                  : 'online_waiting_players'.tr(),
               style: AppTypography.bodyMedium,
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: onLeave,
               icon: const Icon(Icons.logout),
-              label: const Text('Leave room'),
+              label: Text('online_leave_room'.tr()),
             ),
           ],
         ),
@@ -300,10 +312,14 @@ class _ErrorCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Connection failed', style: AppTypography.titleLarge),
+            Text(
+              'online_connection_failed'.tr(),
+              style: AppTypography.titleLarge,
+            ),
             const SizedBox(height: 8),
             Text(message),
-            if (code != null) Text('Code: $code'),
+            if (code != null)
+              Text('online_error_code'.tr(namedArgs: {'code': code!})),
           ],
         ),
       ),

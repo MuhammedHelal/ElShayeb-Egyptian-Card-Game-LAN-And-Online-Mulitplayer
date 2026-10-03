@@ -43,5 +43,31 @@ void main() {
         throwsA(isA<OnlineProtocolException>()),
       );
     });
+
+    test('rejects snapshots containing a malformed player', () {
+      expect(
+        () => OnlineLobbyModel.fromProtocolMessage({
+          'stateVersion': 1,
+          'payload': {
+            'roomCode': 'ABC123',
+            'players': ['not-a-player'],
+          },
+        }),
+        throwsA(isA<OnlineProtocolException>()),
+      );
+    });
+
+    test('rejects snapshots with incomplete required fields', () {
+      expect(
+        () => OnlineLobbyModel.fromProtocolMessage({
+          'stateVersion': 1,
+          'payload': {
+            'roomCode': 'ABC123',
+            'players': const <Map<String, dynamic>>[],
+          },
+        }),
+        throwsA(isA<OnlineProtocolException>()),
+      );
+    });
   });
 }
