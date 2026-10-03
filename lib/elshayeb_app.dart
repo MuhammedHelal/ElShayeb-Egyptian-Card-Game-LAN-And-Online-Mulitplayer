@@ -47,9 +47,15 @@ class ElShayebApp extends StatelessWidget {
           '/game': (_) => const GameScreen(),
           '/settings': (_) => const SettingsScreen(),
           if (AppConsts.durableObjectOnlineEnabled)
-            '/online-session-test': (_) => BlocProvider<OnlineSessionCubit>(
+            '/online-game': (_) => BlocProvider<OnlineSessionCubit>(
                   create: (_) => getIt<OnlineSessionCubit>(),
-                  child: const OnlineSessionTestScreen(),
+                  child: const OnlineGameScreen(),
+                ),
+          if (AppConsts.durableObjectOnlineEnabled &&
+              AppConsts.onlineDiagnosticsEnabled)
+            '/online-diagnostics': (_) => BlocProvider<OnlineSessionCubit>(
+                  create: (_) => getIt<OnlineSessionCubit>(),
+                  child: const OnlineDiagnosticsScreen(),
                 ),
         },
       ),

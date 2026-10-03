@@ -62,6 +62,25 @@ void main() {
         OnlineRoomPhase.playing);
   });
 
+  test('ignores a second server action while the first one is in flight',
+      () async {
+    await cubit.createRoom(playerName: 'Ashraf', avatarId: 'default');
+    repository.startGameCompleter = Completer();
+
+    final firstAction = cubit.startGame();
+    final secondAction = cubit.startGame();
+
+    expect((cubit.state as OnlineSessionReady).isActionInFlight, isTrue);
+    expect(repository.startGameCallCount, 1);
+
+    repository.startGameCompleter!.complete(const Right(
+      _FakeOnlineSessionRepository.playingLobby,
+    ));
+    await Future.wait([firstAction, secondAction]);
+
+    expect((cubit.state as OnlineSessionReady).isActionInFlight, isFalse);
+  });
+
   test('a stale action error cannot replace a newer streamed snapshot',
       () async {
     await cubit.createRoom(playerName: 'Ashraf', avatarId: 'default');
@@ -79,6 +98,23 @@ void main() {
     final state = cubit.state as OnlineSessionReady;
     expect(state.value.stateVersion, 2);
     expect(state.actionErrorCode, 'stale_state');
+  });
+
+  test('an older action response cannot replace a newer streamed snapshot',
+      () async {
+    await cubit.createRoom(playerName: 'Ashraf', avatarId: 'default');
+    repository.startGameCompleter = Completer();
+    final action = cubit.startGame();
+    repository.addUpdate(
+      const OnlineLobbyUpdated(_FakeOnlineSessionRepository.newerPlayingLobby),
+    );
+    await Future<void>.delayed(Duration.zero);
+    repository.startGameCompleter!.complete(
+      const Right(_FakeOnlineSessionRepository.playingLobby),
+    );
+    await action;
+
+    expect((cubit.state as OnlineSessionReady).value.stateVersion, 3);
   });
 }
 
@@ -151,8 +187,51 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
     ],
   );
 
+  static const newerPlayingLobby = OnlineLobby(
+    roomCode: 'ABC123',
+    stateVersion: 3,
+    localUserId: 'user-1',
+    phase: OnlineRoomPhase.playing,
+    canStart: false,
+    canStartNewRound: false,
+    currentPlayerUserId: 'user-2',
+    drawFromUserId: 'user-1',
+    roundNumber: 1,
+    lastAction: null,
+    players: [
+      OnlineLobbyPlayer(
+        userId: 'user-1',
+        name: 'Ashraf',
+        avatarId: 'default',
+        isConnected: true,
+        cardCount: 1,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+        hand: [
+          OnlinePlayingCard(
+            id: 'hearts_5',
+            suit: OnlineCardSuit.hearts,
+            rank: 5,
+          ),
+        ],
+      ),
+      OnlineLobbyPlayer(
+        userId: 'user-2',
+        name: 'Guest',
+        avatarId: 'default',
+        isConnected: true,
+        cardCount: 2,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+      ),
+    ],
+  );
+
   final _updates = StreamController<OnlineSessionUpdate>.broadcast(sync: true);
   int? lastExpectedStateVersion;
+  int startGameCallCount = 0;
   Completer<FailureOrSuccess<OnlineLobby>>? startGameCompleter;
 
   void addUpdate(OnlineSessionUpdate update) => _updates.add(update);
@@ -182,6 +261,7 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
   Future<FailureOrSuccess<OnlineLobby>> startGame(
     int expectedStateVersion,
   ) async {
+    startGameCallCount += 1;
     lastExpectedStateVersion = expectedStateVersion;
     if (startGameCompleter case final completer?) return completer.future;
     return const Right(playingLobby);

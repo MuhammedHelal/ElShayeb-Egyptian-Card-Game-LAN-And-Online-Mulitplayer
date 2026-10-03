@@ -217,6 +217,20 @@ class _HomeScreenState extends State<HomeScreen>
                               onTap: () => _startGame(context, GameMode.online),
                               isSecondary: true,
                             ),
+                            if (AppConsts.durableObjectOnlineEnabled &&
+                                AppConsts.onlineDiagnosticsEnabled) ...[
+                              const SizedBox(height: 8),
+                              _GameModeButton(
+                                icon: Icons.bug_report_outlined,
+                                title: 'online_diagnostics_title'.tr(),
+                                subtitle: 'online_diagnostics_description'.tr(),
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  '/online-diagnostics',
+                                ),
+                                isSecondary: true,
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -246,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _startGame(BuildContext context, GameMode mode) {
     if (mode == GameMode.online && AppConsts.durableObjectOnlineEnabled) {
-      Navigator.pushNamed(context, '/online-session-test');
+      Navigator.pushNamed(context, '/online-game');
       return;
     }
     context.read<GameCubit>().setGameMode(mode);

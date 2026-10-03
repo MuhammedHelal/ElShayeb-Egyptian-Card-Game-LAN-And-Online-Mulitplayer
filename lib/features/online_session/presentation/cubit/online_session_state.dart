@@ -33,6 +33,7 @@ class OnlineSessionReady extends OnlineSessionState {
   final OnlineLobby value;
   final String? actionErrorMessage;
   final String? actionErrorCode;
+  final bool isActionInFlight;
 
   OnlineSessionReady(
     this.value, {
@@ -40,6 +41,7 @@ class OnlineSessionReady extends OnlineSessionState {
         OnlineServerConnectionStatus.connected,
     this.actionErrorMessage,
     this.actionErrorCode,
+    this.isActionInFlight = false,
   }) : super(lobby: Resource.success(value), connectionStatus: status);
 
   @override
@@ -48,6 +50,7 @@ class OnlineSessionReady extends OnlineSessionState {
         value,
         actionErrorMessage,
         actionErrorCode,
+        isActionInFlight,
       ];
 }
 

@@ -96,7 +96,12 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
 
   Future<void> startGame() async {
     final current = state;
-    if (current is! OnlineSessionReady || !current.value.canStart) return;
+    if (current is! OnlineSessionReady ||
+        current.isActionInFlight ||
+        !current.value.canStart) {
+      return;
+    }
+    _markActionInFlight(current);
     _handleGameResult(
       await _startOnlineGame(current.value.stateVersion),
       current,
@@ -105,9 +110,14 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
 
   Future<void> drawCard(int cardIndex) async {
     final current = state;
-    if (current is! OnlineSessionReady || !current.value.isMyTurn) return;
+    if (current is! OnlineSessionReady ||
+        current.isActionInFlight ||
+        !current.value.isMyTurn) {
+      return;
+    }
     final targetUserId = current.value.drawFromUserId;
     if (targetUserId == null) return;
+    _markActionInFlight(current);
     _handleGameResult(
       await _drawOnlineCard(
         targetUserId: targetUserId,
@@ -121,9 +131,11 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
   Future<void> shuffleHand() async {
     final current = state;
     if (current is! OnlineSessionReady ||
+        current.isActionInFlight ||
         current.value.phase != OnlineRoomPhase.playing) {
       return;
     }
+    _markActionInFlight(current);
     _handleGameResult(
       await _shuffleOnlineHand(current.value.stateVersion),
       current,
@@ -132,13 +144,24 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
 
   Future<void> startNewRound() async {
     final current = state;
-    if (current is! OnlineSessionReady || !current.value.canStartNewRound) {
+    if (current is! OnlineSessionReady ||
+        current.isActionInFlight ||
+        !current.value.canStartNewRound) {
       return;
     }
+    _markActionInFlight(current);
     _handleGameResult(
       await _startOnlineRound(current.value.stateVersion),
       current,
     );
+  }
+
+  void _markActionInFlight(OnlineSessionReady current) {
+    emit(OnlineSessionReady(
+      current.value,
+      status: current.connectionStatus,
+      isActionInFlight: true,
+    ));
   }
 
   void _handleGameResult(
@@ -158,7 +181,17 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
           actionErrorCode: failure.code,
         ));
       },
-      (room) => emit(OnlineSessionReady(room)),
+      (room) {
+        final latest = state is OnlineSessionReady
+            ? state as OnlineSessionReady
+            : previous;
+        final newestRoom =
+            latest.value.stateVersion > room.stateVersion ? latest.value : room;
+        emit(OnlineSessionReady(
+          newestRoom,
+          status: latest.connectionStatus,
+        ));
+      },
     );
   }
 
@@ -170,7 +203,11 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
       case OnlineConnectionUpdated(:final status):
         final currentState = state;
         if (currentState is OnlineSessionReady) {
-          emit(OnlineSessionReady(currentState.value, status: status));
+          emit(OnlineSessionReady(
+            currentState.value,
+            status: status,
+            isActionInFlight: currentState.isActionInFlight,
+          ));
         } else if (status == OnlineServerConnectionStatus.disconnected) {
           emit(const OnlineSessionInitial());
         } else {

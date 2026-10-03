@@ -128,6 +128,9 @@ class OnlineLobby extends Equatable {
   OnlineLobbyPlayer? get drawFromPlayer =>
       drawFromUserId == null ? null : _playerById(drawFromUserId!);
 
+  OnlineLobbyPlayer? get currentPlayer =>
+      currentPlayerUserId == null ? null : _playerById(currentPlayerUserId!);
+
   bool get isMyTurn => currentPlayerUserId == localUserId;
 
   OnlineLobbyPlayer? _playerById(String userId) {

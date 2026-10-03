@@ -135,6 +135,16 @@ on one device, join its six-character code from another, then play a complete
 server-owned round. The server owns the deck, private hands, turns, draw
 validation, pair removal, scoring, and reconnect state.
 
+For the separate developer diagnostics screen, enable both flags:
+
+```bash
+flutter run --dart-define=DURABLE_OBJECT_ONLINE=true --dart-define=ONLINE_DIAGNOSTICS=true
+```
+
+The diagnostics flag adds a second Home entry for inspecting raw room snapshots
+and sending server commands. It is disabled by default and does not replace the
+player-facing online game.
+
 ---
 
 ## 🚀 Future Improvements
