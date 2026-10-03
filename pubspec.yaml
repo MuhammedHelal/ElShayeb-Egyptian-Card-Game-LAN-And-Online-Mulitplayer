@@ -23,6 +23,8 @@ dependencies:
   flutter_svg: ^2.0.9
   
   # Networking
+  dartz: ^0.10.1
+  http: ^1.2.2
   multicast_dns: ^0.3.2+1
   web_socket_channel: ^2.4.0
   

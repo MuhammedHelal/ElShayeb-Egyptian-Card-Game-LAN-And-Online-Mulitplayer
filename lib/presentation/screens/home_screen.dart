@@ -245,6 +245,10 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _startGame(BuildContext context, GameMode mode) {
+    if (mode == GameMode.online && AppConsts.durableObjectOnlineEnabled) {
+      Navigator.pushNamed(context, '/online-session-test');
+      return;
+    }
     context.read<GameCubit>().setGameMode(mode);
     Navigator.push(
       context,

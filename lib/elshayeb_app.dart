@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'injection_container.dart';
+import 'core/constants/app_consts.dart';
+import 'features/online_session/online_session.dart';
 import 'presentation/presentation.dart';
 
 class ElShayebApp extends StatelessWidget {
@@ -44,6 +46,11 @@ class ElShayebApp extends StatelessWidget {
           '/lobby': (_) => const LobbyScreen(),
           '/game': (_) => const GameScreen(),
           '/settings': (_) => const SettingsScreen(),
+          if (AppConsts.durableObjectOnlineEnabled)
+            '/online-session-test': (_) => BlocProvider<OnlineSessionCubit>(
+                  create: (_) => getIt<OnlineSessionCubit>(),
+                  child: const OnlineSessionTestScreen(),
+                ),
         },
       ),
     );

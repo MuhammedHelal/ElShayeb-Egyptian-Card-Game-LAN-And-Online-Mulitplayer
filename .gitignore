@@ -31,8 +31,19 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
-/coverage/
-
+/coverage/# Cloudflare Worker / Node
+/server/node_modules/
+/server/.wrangler/
+/server/.deploy/
+/server/.dev.vars
+/server/coverage/
+/server/.npm-cache/
+/server/.wrangler-config/
+/server/.wrangler-cache/
+/server/.wrangler-dry-run/
+/.pub-cache/
+/.dart-appdata/
+.AGENTS.md
 # Symbolication related
 app.*.symbols
 

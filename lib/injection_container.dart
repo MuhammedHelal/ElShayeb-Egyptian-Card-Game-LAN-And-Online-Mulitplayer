@@ -3,13 +3,16 @@
 library;
 
 import 'package:get_it/get_it.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/core.dart';
 import 'domain/domain.dart';
 import 'presentation/presentation.dart';
 import 'data/network/online_network_service.dart';
 import 'data/network/supabase/supabase_network_service.dart';
+import 'features/online_session/online_session.dart';
 
 /// Global service locator instance
 final getIt = GetIt.instance;
@@ -41,6 +44,33 @@ Future<void> initDependencies() async {
     () => SupabaseNetworkService(),
   );
 
+  // Cloudflare Durable Objects online-session test path. This is isolated
+  // from the host-oriented NetworkManager until server-side gameplay ships.
+  getIt.registerLazySingleton<http.Client>(() => http.Client());
+  getIt.registerLazySingleton<OnlineSessionRemoteDataSource>(
+    () => CloudflareOnlineSessionDataSource(
+      supabase: Supabase.instance.client,
+      httpClient: getIt<http.Client>(),
+    ),
+  );
+  getIt.registerLazySingleton<OnlineSessionRepository>(
+    () => OnlineSessionRepositoryImpl(
+      getIt<OnlineSessionRemoteDataSource>(),
+    ),
+  );
+  getIt.registerLazySingleton(
+    () => ObserveOnlineSessionUseCase(getIt<OnlineSessionRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => CreateOnlineRoomUseCase(getIt<OnlineSessionRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => JoinOnlineRoomUseCase(getIt<OnlineSessionRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => LeaveOnlineRoomUseCase(getIt<OnlineSessionRepository>()),
+  );
+
   // ============ Presentation ============
 
   // Settings Cubit
@@ -58,6 +88,15 @@ Future<void> initDependencies() async {
       audioManager: getIt<AudioManager>(),
       hapticManager: getIt<HapticManager>(),
       settingsRepository: getIt<SettingsRepository>(),
+    ),
+  );
+
+  getIt.registerFactory<OnlineSessionCubit>(
+    () => OnlineSessionCubit(
+      observeOnlineSession: getIt<ObserveOnlineSessionUseCase>(),
+      createOnlineRoom: getIt<CreateOnlineRoomUseCase>(),
+      joinOnlineRoom: getIt<JoinOnlineRoomUseCase>(),
+      leaveOnlineRoom: getIt<LeaveOnlineRoomUseCase>(),
     ),
   );
 }
