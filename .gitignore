@@ -44,6 +44,8 @@ migrate_working_dir/
 /.pub-cache/
 /.dart-appdata/
 .AGENTS.md
+server/*
+server/*/*
 # Symbolication related
 app.*.symbols
 
