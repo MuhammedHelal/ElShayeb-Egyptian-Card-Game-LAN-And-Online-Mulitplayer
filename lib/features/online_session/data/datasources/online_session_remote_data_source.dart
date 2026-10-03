@@ -370,7 +370,7 @@ class CloudflareOnlineSessionDataSource
       await _sendAndWait(
         type: 'leave_room',
         payload: const {},
-        expectedType: 'room_snapshot',
+        expectedType: 'left_room',
       );
     }
     _roomCode = null;
