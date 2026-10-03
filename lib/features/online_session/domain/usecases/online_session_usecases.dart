@@ -48,3 +48,47 @@ class LeaveOnlineRoomUseCase {
 
   Future<FailureOrSuccess<Unit>> call() => _repository.leaveRoom();
 }
+
+class StartOnlineGameUseCase {
+  final OnlineSessionRepository _repository;
+
+  const StartOnlineGameUseCase(this._repository);
+
+  Future<FailureOrSuccess<OnlineLobby>> call(int expectedStateVersion) =>
+      _repository.startGame(expectedStateVersion);
+}
+
+class DrawOnlineCardUseCase {
+  final OnlineSessionRepository _repository;
+
+  const DrawOnlineCardUseCase(this._repository);
+
+  Future<FailureOrSuccess<OnlineLobby>> call({
+    required String targetUserId,
+    required int cardIndex,
+    required int expectedStateVersion,
+  }) =>
+      _repository.drawCard(
+        targetUserId: targetUserId,
+        cardIndex: cardIndex,
+        expectedStateVersion: expectedStateVersion,
+      );
+}
+
+class ShuffleOnlineHandUseCase {
+  final OnlineSessionRepository _repository;
+
+  const ShuffleOnlineHandUseCase(this._repository);
+
+  Future<FailureOrSuccess<OnlineLobby>> call(int expectedStateVersion) =>
+      _repository.shuffleHand(expectedStateVersion);
+}
+
+class StartOnlineRoundUseCase {
+  final OnlineSessionRepository _repository;
+
+  const StartOnlineRoundUseCase(this._repository);
+
+  Future<FailureOrSuccess<OnlineLobby>> call(int expectedStateVersion) =>
+      _repository.startNewRound(expectedStateVersion);
+}

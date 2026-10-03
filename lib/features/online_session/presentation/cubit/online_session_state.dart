@@ -31,15 +31,24 @@ class OnlineSessionLoading extends OnlineSessionState {
 
 class OnlineSessionReady extends OnlineSessionState {
   final OnlineLobby value;
+  final String? actionErrorMessage;
+  final String? actionErrorCode;
 
   OnlineSessionReady(
     this.value, {
     OnlineServerConnectionStatus status =
         OnlineServerConnectionStatus.connected,
+    this.actionErrorMessage,
+    this.actionErrorCode,
   }) : super(lobby: Resource.success(value), connectionStatus: status);
 
   @override
-  List<Object?> get props => [...super.props, value];
+  List<Object?> get props => [
+        ...super.props,
+        value,
+        actionErrorMessage,
+        actionErrorCode,
+      ];
 }
 
 class OnlineSessionFailure extends OnlineSessionState {

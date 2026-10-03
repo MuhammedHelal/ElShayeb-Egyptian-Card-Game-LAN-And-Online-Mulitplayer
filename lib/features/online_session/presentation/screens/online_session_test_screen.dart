@@ -107,10 +107,25 @@ class _OnlineSessionTestScreenState extends State<OnlineSessionTestScreen> {
                           child: CircularProgressIndicator(),
                         ),
                       ),
-                    OnlineSessionReady(:final value) => _LobbyCard(
+                    OnlineSessionReady(
+                      :final value,
+                      :final actionErrorMessage,
+                      :final actionErrorCode,
+                    ) =>
+                      _LobbyCard(
                         lobby: value,
+                        actionErrorMessage: actionErrorMessage,
+                        actionErrorCode: actionErrorCode,
                         onLeave: () =>
                             context.read<OnlineSessionCubit>().leaveRoom(),
+                        onStartGame: () =>
+                            context.read<OnlineSessionCubit>().startGame(),
+                        onDrawCard: (index) =>
+                            context.read<OnlineSessionCubit>().drawCard(index),
+                        onShuffle: () =>
+                            context.read<OnlineSessionCubit>().shuffleHand(),
+                        onStartNewRound: () =>
+                            context.read<OnlineSessionCubit>().startNewRound(),
                       ),
                     OnlineSessionFailure(:final message, :final code) =>
                       _ErrorCard(message: message, code: code),
@@ -207,9 +222,24 @@ class _ConnectionBanner extends StatelessWidget {
 
 class _LobbyCard extends StatelessWidget {
   final OnlineLobby lobby;
+  final String? actionErrorMessage;
+  final String? actionErrorCode;
   final VoidCallback onLeave;
+  final VoidCallback onStartGame;
+  final ValueChanged<int> onDrawCard;
+  final VoidCallback onShuffle;
+  final VoidCallback onStartNewRound;
 
-  const _LobbyCard({required this.lobby, required this.onLeave});
+  const _LobbyCard({
+    required this.lobby,
+    required this.actionErrorMessage,
+    required this.actionErrorCode,
+    required this.onLeave,
+    required this.onStartGame,
+    required this.onDrawCard,
+    required this.onShuffle,
+    required this.onStartNewRound,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -245,6 +275,19 @@ class _LobbyCard extends StatelessWidget {
                 namedArgs: {'version': lobby.stateVersion.toString()},
               ),
             ),
+            Text(
+              'online_round_phase'.tr(namedArgs: {
+                'round': lobby.roundNumber.toString(),
+                'phase': _phaseLabel(lobby.phase),
+              }),
+            ),
+            if (actionErrorMessage != null) ...[
+              const SizedBox(height: 8),
+              _InlineActionError(
+                message: actionErrorMessage!,
+                code: actionErrorCode,
+              ),
+            ],
             const Divider(height: 24),
             for (final player in lobby.players)
               ListTile(
@@ -257,18 +300,32 @@ class _LobbyCard extends StatelessWidget {
                 ),
                 title: Text(player.name),
                 subtitle: Text(
-                  player.userId == lobby.localUserId
-                      ? 'online_you'.tr()
-                      : 'online_player'.tr(),
+                  'online_player_summary'.tr(namedArgs: {
+                    'role': player.userId == lobby.localUserId
+                        ? 'online_you'.tr()
+                        : 'online_player'.tr(),
+                    'cards': player.cardCount.toString(),
+                    'score': player.score.toString(),
+                    'status': _statusLabel(player.status),
+                  }),
                 ),
               ),
             const SizedBox(height: 8),
-            Text(
-              lobby.canStart
-                  ? 'online_lobby_verified'.tr()
-                  : 'online_waiting_players'.tr(),
-              style: AppTypography.bodyMedium,
-            ),
+            switch (lobby.phase) {
+              OnlineRoomPhase.lobby => _LobbyPhaseControls(
+                  canStart: lobby.canStart,
+                  onStartGame: onStartGame,
+                ),
+              OnlineRoomPhase.playing => _PlayingPhaseControls(
+                  lobby: lobby,
+                  onDrawCard: onDrawCard,
+                  onShuffle: onShuffle,
+                ),
+              OnlineRoomPhase.roundEnd => _RoundEndControls(
+                  canStartNewRound: lobby.canStartNewRound,
+                  onStartNewRound: onStartNewRound,
+                ),
+            },
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: onLeave,
@@ -277,6 +334,163 @@ class _LobbyCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _phaseLabel(OnlineRoomPhase phase) => switch (phase) {
+        OnlineRoomPhase.lobby => 'online_phase_lobby'.tr(),
+        OnlineRoomPhase.playing => 'online_phase_playing'.tr(),
+        OnlineRoomPhase.roundEnd => 'online_phase_round_end'.tr(),
+      };
+
+  String _statusLabel(OnlinePlayerStatus status) => switch (status) {
+        OnlinePlayerStatus.playing => 'online_player_playing'.tr(),
+        OnlinePlayerStatus.finished => 'online_player_finished'.tr(),
+        OnlinePlayerStatus.shayeb => 'online_player_shayeb'.tr(),
+      };
+}
+
+class _LobbyPhaseControls extends StatelessWidget {
+  final bool canStart;
+  final VoidCallback onStartGame;
+
+  const _LobbyPhaseControls(
+      {required this.canStart, required this.onStartGame});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          canStart
+              ? 'online_lobby_verified'.tr()
+              : 'online_waiting_players'.tr(),
+          style: AppTypography.bodyMedium,
+        ),
+        if (canStart) ...[
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: onStartGame,
+            icon: const Icon(Icons.play_arrow),
+            label: Text('online_start_game'.tr()),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PlayingPhaseControls extends StatelessWidget {
+  final OnlineLobby lobby;
+  final ValueChanged<int> onDrawCard;
+  final VoidCallback onShuffle;
+
+  const _PlayingPhaseControls({
+    required this.lobby,
+    required this.onDrawCard,
+    required this.onShuffle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final localPlayer = lobby.localPlayer;
+    final target = lobby.drawFromPlayer;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          lobby.isMyTurn ? 'online_your_turn'.tr() : 'online_waiting_turn'.tr(),
+          style: AppTypography.titleMedium,
+        ),
+        if (localPlayer?.hand case final hand?) ...[
+          const SizedBox(height: 12),
+          Text('online_your_hand'.tr()),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final card in hand) Chip(label: Text(card.label)),
+            ],
+          ),
+        ],
+        if (lobby.isMyTurn && target != null) ...[
+          const SizedBox(height: 16),
+          Text('online_draw_from'.tr(namedArgs: {'name': target.name})),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var index = 0; index < target.cardCount; index += 1)
+                OutlinedButton(
+                  onPressed: () => onDrawCard(index),
+                  child: Text(
+                    'online_hidden_card'.tr(
+                      namedArgs: {'number': '${index + 1}'},
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: onShuffle,
+          icon: const Icon(Icons.shuffle),
+          label: Text('online_shuffle_hand'.tr()),
+        ),
+      ],
+    );
+  }
+}
+
+class _RoundEndControls extends StatelessWidget {
+  final bool canStartNewRound;
+  final VoidCallback onStartNewRound;
+
+  const _RoundEndControls({
+    required this.canStartNewRound,
+    required this.onStartNewRound,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('online_round_finished'.tr(), style: AppTypography.titleMedium),
+        if (canStartNewRound) ...[
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: onStartNewRound,
+            icon: const Icon(Icons.replay),
+            label: Text('online_start_new_round'.tr()),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _InlineActionError extends StatelessWidget {
+  final String message;
+  final String? code;
+
+  const _InlineActionError({required this.message, required this.code});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Text(code == null ? message : '$message ($code)'),
       ),
     );
   }

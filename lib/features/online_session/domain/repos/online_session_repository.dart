@@ -18,4 +18,16 @@ abstract class OnlineSessionRepository {
   });
 
   Future<FailureOrSuccess<Unit>> leaveRoom();
+
+  Future<FailureOrSuccess<OnlineLobby>> startGame(int expectedStateVersion);
+
+  Future<FailureOrSuccess<OnlineLobby>> drawCard({
+    required String targetUserId,
+    required int cardIndex,
+    required int expectedStateVersion,
+  });
+
+  Future<FailureOrSuccess<OnlineLobby>> shuffleHand(int expectedStateVersion);
+
+  Future<FailureOrSuccess<OnlineLobby>> startNewRound(int expectedStateVersion);
 }

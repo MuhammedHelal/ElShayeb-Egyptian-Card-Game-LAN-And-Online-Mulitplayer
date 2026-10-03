@@ -160,5 +160,22 @@
     "online_waiting_players": "في انتظار اللاعبين. ستظل الغرفة موجودة حتى إذا انقطع منشئها.",
     "online_leave_room": "مغادرة الغرفة",
     "online_connection_failed": "فشل الاتصال",
-    "online_error_code": "الكود: {code}"
+    "online_error_code": "الكود: {code}",
+    "online_round_phase": "الجولة {round} · {phase}",
+    "online_phase_lobby": "الغرفة",
+    "online_phase_playing": "اللعب جارٍ",
+    "online_phase_round_end": "انتهت الجولة",
+    "online_player_summary": "{role} · {cards} كارت · {score} نقطة · {status}",
+    "online_player_playing": "يلعب",
+    "online_player_finished": "أنهى",
+    "online_player_shayeb": "الشايب",
+    "online_start_game": "ابدأ اللعبة على السيرفر",
+    "online_your_turn": "دورك — اختر كارتاً مخفياً",
+    "online_waiting_turn": "في انتظار الدور من السيرفر",
+    "online_your_hand": "كروتك الخاصة",
+    "online_draw_from": "اسحب من {name}",
+    "online_hidden_card": "الكارت {number}",
+    "online_shuffle_hand": "اخلط كروتي",
+    "online_round_finished": "السيرفر أنهى الجولة وحسب النقاط.",
+    "online_start_new_round": "ابدأ جولة جديدة"
 }

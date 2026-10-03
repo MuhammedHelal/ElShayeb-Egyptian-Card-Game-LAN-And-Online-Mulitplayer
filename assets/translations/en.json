@@ -160,5 +160,22 @@
   "online_waiting_players": "Waiting for players. The room remains alive if its creator disconnects.",
   "online_leave_room": "Leave room",
   "online_connection_failed": "Connection failed",
-  "online_error_code": "Code: {code}"
+  "online_error_code": "Code: {code}",
+  "online_round_phase": "Round {round} · {phase}",
+  "online_phase_lobby": "Lobby",
+  "online_phase_playing": "Playing",
+  "online_phase_round_end": "Round complete",
+  "online_player_summary": "{role} · {cards} cards · {score} points · {status}",
+  "online_player_playing": "Playing",
+  "online_player_finished": "Finished",
+  "online_player_shayeb": "El-Shayeb",
+  "online_start_game": "Start server game",
+  "online_your_turn": "Your turn — choose one hidden card",
+  "online_waiting_turn": "Waiting for the server turn",
+  "online_your_hand": "Your private hand",
+  "online_draw_from": "Draw from {name}",
+  "online_hidden_card": "Card {number}",
+  "online_shuffle_hand": "Shuffle my hand",
+  "online_round_finished": "The server completed and scored this round.",
+  "online_start_new_round": "Start new round"
 }

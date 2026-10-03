@@ -70,6 +70,18 @@ Future<void> initDependencies() async {
   getIt.registerLazySingleton(
     () => LeaveOnlineRoomUseCase(getIt<OnlineSessionRepository>()),
   );
+  getIt.registerLazySingleton(
+    () => StartOnlineGameUseCase(getIt<OnlineSessionRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => DrawOnlineCardUseCase(getIt<OnlineSessionRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => ShuffleOnlineHandUseCase(getIt<OnlineSessionRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => StartOnlineRoundUseCase(getIt<OnlineSessionRepository>()),
+  );
 
   // ============ Presentation ============
 
@@ -97,6 +109,10 @@ Future<void> initDependencies() async {
       createOnlineRoom: getIt<CreateOnlineRoomUseCase>(),
       joinOnlineRoom: getIt<JoinOnlineRoomUseCase>(),
       leaveOnlineRoom: getIt<LeaveOnlineRoomUseCase>(),
+      startOnlineGame: getIt<StartOnlineGameUseCase>(),
+      drawOnlineCard: getIt<DrawOnlineCardUseCase>(),
+      shuffleOnlineHand: getIt<ShuffleOnlineHandUseCase>(),
+      startOnlineRound: getIt<StartOnlineRoundUseCase>(),
     ),
   );
 }

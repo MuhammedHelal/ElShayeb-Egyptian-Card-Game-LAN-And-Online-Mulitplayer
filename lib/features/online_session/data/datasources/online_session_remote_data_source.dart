@@ -24,6 +24,18 @@ abstract class OnlineSessionRemoteDataSource {
   });
 
   Future<void> leaveRoom();
+
+  Future<OnlineLobbyModel> startGame(int expectedStateVersion);
+
+  Future<OnlineLobbyModel> drawCard({
+    required String targetUserId,
+    required int cardIndex,
+    required int expectedStateVersion,
+  });
+
+  Future<OnlineLobbyModel> shuffleHand(int expectedStateVersion);
+
+  Future<OnlineLobbyModel> startNewRound(int expectedStateVersion);
 }
 
 class CloudflareOnlineSessionDataSource
@@ -174,7 +186,7 @@ class CloudflareOnlineSessionDataSource
     final snapshot = await _sendAndWait(
       type: commandType,
       payload: {'name': playerName, 'avatarId': avatarId},
-      expectedType: 'lobby_snapshot',
+      expectedType: 'room_snapshot',
     );
     final lobby = OnlineLobbyModel.fromProtocolMessage(snapshot);
     _reconnectAttempt = 0;
@@ -211,6 +223,7 @@ class CloudflareOnlineSessionDataSource
     required String type,
     required Map<String, dynamic> payload,
     required String expectedType,
+    int? expectedStateVersion,
   }) async {
     final actionId = _uuid.v4();
     final completer = Completer<Map<String, dynamic>>();
@@ -219,6 +232,8 @@ class CloudflareOnlineSessionDataSource
       'protocolVersion': OnlineServerConstants.protocolVersion,
       'type': type,
       'actionId': actionId,
+      if (expectedStateVersion != null)
+        'expectedStateVersion': expectedStateVersion,
       'payload': payload,
     }));
     try {
@@ -274,6 +289,7 @@ class CloudflareOnlineSessionDataSource
           final pending = _pendingCommands[actionId];
           if (pending != null && !pending.isCompleted) {
             pending.completeError(exception);
+            return;
           }
         }
         _updates.add(OnlineErrorUpdateModel(code, message));
@@ -286,7 +302,7 @@ class CloudflareOnlineSessionDataSource
           pending.complete(decoded);
         }
       }
-      if (type == 'lobby_snapshot') {
+      if (type == 'room_snapshot') {
         _updates.add(
           OnlineLobbyUpdateModel(
             OnlineLobbyModel.fromProtocolMessage(decoded),
@@ -354,7 +370,7 @@ class CloudflareOnlineSessionDataSource
       await _sendAndWait(
         type: 'leave_room',
         payload: const {},
-        expectedType: 'lobby_snapshot',
+        expectedType: 'room_snapshot',
       );
     }
     _roomCode = null;
@@ -366,5 +382,62 @@ class CloudflareOnlineSessionDataSource
     _channel = null;
     _socketAvailable = false;
     _emitConnection(OnlineConnectionStatusModel.disconnected);
+  }
+
+  @override
+  Future<OnlineLobbyModel> startGame(int expectedStateVersion) {
+    return _sendGameCommand(
+      type: 'start_game',
+      expectedStateVersion: expectedStateVersion,
+    );
+  }
+
+  @override
+  Future<OnlineLobbyModel> drawCard({
+    required String targetUserId,
+    required int cardIndex,
+    required int expectedStateVersion,
+  }) {
+    return _sendGameCommand(
+      type: 'draw_card',
+      expectedStateVersion: expectedStateVersion,
+      payload: {'targetUserId': targetUserId, 'cardIndex': cardIndex},
+    );
+  }
+
+  @override
+  Future<OnlineLobbyModel> shuffleHand(int expectedStateVersion) {
+    return _sendGameCommand(
+      type: 'shuffle_hand',
+      expectedStateVersion: expectedStateVersion,
+    );
+  }
+
+  @override
+  Future<OnlineLobbyModel> startNewRound(int expectedStateVersion) {
+    return _sendGameCommand(
+      type: 'start_new_round',
+      expectedStateVersion: expectedStateVersion,
+    );
+  }
+
+  Future<OnlineLobbyModel> _sendGameCommand({
+    required String type,
+    required int expectedStateVersion,
+    Map<String, dynamic> payload = const {},
+  }) async {
+    if (!_socketAvailable || _channel == null) {
+      throw const OnlineProtocolException(
+        'not_connected',
+        'Connect to an online room before sending a game action.',
+      );
+    }
+    final message = await _sendAndWait(
+      type: type,
+      payload: payload,
+      expectedType: 'room_snapshot',
+      expectedStateVersion: expectedStateVersion,
+    );
+    return OnlineLobbyModel.fromProtocolMessage(message);
   }
 }

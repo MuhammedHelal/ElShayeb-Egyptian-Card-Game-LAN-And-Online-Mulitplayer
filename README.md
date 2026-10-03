@@ -121,19 +121,19 @@ flutter pub get
 flutter run
 ```
 
-### Cloudflare online lobby test
+### Cloudflare authoritative online test
 
-The server-authoritative online path is currently enabled only for lobby
-testing. Run the app with:
+The server-authoritative online path is behind a feature flag while it is
+validated on real devices. Run the app with:
 
 ```bash
 flutter run --dart-define=DURABLE_OBJECT_ONLINE=true
 ```
 
-The **Online** button will then open the Cloudflare Durable Objects lobby.
-Create a room on one device and join its six-character code from another.
-Card gameplay remains on the legacy path until the rules have been moved to
-the server and its private player views are ready.
+The **Online** button opens the Cloudflare Durable Objects room. Create a room
+on one device, join its six-character code from another, then play a complete
+server-owned round. The server owns the deck, private hands, turns, draw
+validation, pair removal, scoring, and reconnect state.
 
 ---
 

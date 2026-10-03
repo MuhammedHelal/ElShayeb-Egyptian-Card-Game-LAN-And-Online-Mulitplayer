@@ -59,6 +59,53 @@ class OnlineSessionRepositoryImpl implements OnlineSessionRepository {
     );
   }
 
+  @override
+  Future<FailureOrSuccess<OnlineLobby>> startGame(int expectedStateVersion) {
+    return _runRoomCommand(
+      () => _remoteDataSource.startGame(expectedStateVersion),
+    );
+  }
+
+  @override
+  Future<FailureOrSuccess<OnlineLobby>> drawCard({
+    required String targetUserId,
+    required int cardIndex,
+    required int expectedStateVersion,
+  }) {
+    return _runRoomCommand(
+      () => _remoteDataSource.drawCard(
+        targetUserId: targetUserId,
+        cardIndex: cardIndex,
+        expectedStateVersion: expectedStateVersion,
+      ),
+    );
+  }
+
+  @override
+  Future<FailureOrSuccess<OnlineLobby>> shuffleHand(int expectedStateVersion) {
+    return _runRoomCommand(
+      () => _remoteDataSource.shuffleHand(expectedStateVersion),
+    );
+  }
+
+  @override
+  Future<FailureOrSuccess<OnlineLobby>> startNewRound(
+    int expectedStateVersion,
+  ) {
+    return _runRoomCommand(
+      () => _remoteDataSource.startNewRound(expectedStateVersion),
+    );
+  }
+
+  Future<FailureOrSuccess<OnlineLobby>> _runRoomCommand(
+    Future<OnlineLobbyModel> Function() command,
+  ) {
+    return executeAndHandleErrorsAsyncWrapper(
+      () async => (await command()).toEntity(),
+      mapFailure: _mapFailure,
+    );
+  }
+
   OnlineSessionUpdate _mapUpdate(OnlineSessionUpdateModel update) {
     return switch (update) {
       OnlineConnectionUpdateModel(:final status) =>
