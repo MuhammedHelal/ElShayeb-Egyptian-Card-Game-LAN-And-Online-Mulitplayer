@@ -17,6 +17,8 @@ void main() {
       observeOnlineSession: ObserveOnlineSessionUseCase(repository),
       createOnlineRoom: CreateOnlineRoomUseCase(repository),
       joinOnlineRoom: JoinOnlineRoomUseCase(repository),
+      restoreOnlineSession: RestoreOnlineSessionUseCase(repository),
+      reconnectOnlineSession: ReconnectOnlineSessionUseCase(repository),
       leaveOnlineRoom: LeaveOnlineRoomUseCase(repository),
       startOnlineGame: StartOnlineGameUseCase(repository),
       drawOnlineCard: DrawOnlineCardUseCase(repository),
@@ -32,6 +34,56 @@ void main() {
 
     expect(cubit.state, isA<OnlineSessionReady>());
     expect((cubit.state as OnlineSessionReady).value.roomCode, 'ABC123');
+  });
+
+  test('restores a saved room on screen entry', () async {
+    repository.savedLobby = _FakeOnlineSessionRepository.lobby;
+
+    await cubit.restoreSession();
+
+    expect(cubit.state, isA<OnlineSessionReady>());
+    expect((cubit.state as OnlineSessionReady).value.roomCode, 'ABC123');
+  });
+
+  test('returns to room entry when there is no saved room', () async {
+    await cubit.restoreSession();
+
+    expect(cubit.state, isA<OnlineSessionInitial>());
+  });
+
+  test('retries a failed saved-room restore when the app resumes', () async {
+    repository.restoreFailure =
+        const AppFailure('Offline', code: 'socket_error');
+    await cubit.restoreSession();
+    repository.restoreFailure = null;
+    repository.savedLobby = _FakeOnlineSessionRepository.lobby;
+
+    await cubit.onAppResumed();
+
+    expect(repository.restoreCallCount, 2);
+    expect(cubit.state, isA<OnlineSessionReady>());
+  });
+
+  test('reconnects a ready room when the app resumes', () async {
+    await cubit.createRoom(playerName: 'Ashraf', avatarId: 'default');
+
+    await cubit.onAppResumed();
+
+    expect(repository.reconnectCallCount, 1);
+    expect(
+        cubit.state.connectionStatus, OnlineServerConnectionStatus.connected);
+  });
+
+  test('does not send game actions while the room is offline', () async {
+    await cubit.createRoom(playerName: 'Ashraf', avatarId: 'default');
+    repository.addUpdate(const OnlineConnectionUpdated(
+      OnlineServerConnectionStatus.disconnected,
+    ));
+    await Future<void>.delayed(Duration.zero);
+
+    await cubit.startGame();
+
+    expect(repository.startGameCallCount, 0);
   });
 
   test('surfaces reconnecting and resumed snapshot updates', () async {
@@ -233,6 +285,10 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
   int? lastExpectedStateVersion;
   int startGameCallCount = 0;
   Completer<FailureOrSuccess<OnlineLobby>>? startGameCompleter;
+  OnlineLobby? savedLobby;
+  AppFailure? restoreFailure;
+  int restoreCallCount = 0;
+  int reconnectCallCount = 0;
 
   void addUpdate(OnlineSessionUpdate update) => _updates.add(update);
 
@@ -253,6 +309,19 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
     required String avatarId,
   }) async =>
       const Right(lobby);
+
+  @override
+  Future<FailureOrSuccess<OnlineLobby?>> restoreSession() async {
+    restoreCallCount += 1;
+    final failure = restoreFailure;
+    return failure == null ? Right(savedLobby) : Left(failure);
+  }
+
+  @override
+  Future<FailureOrSuccess<OnlineLobby>> reconnect() async {
+    reconnectCallCount += 1;
+    return const Right(lobby);
+  }
 
   @override
   Future<FailureOrSuccess<Unit>> leaveRoom() async => const Right(unit);

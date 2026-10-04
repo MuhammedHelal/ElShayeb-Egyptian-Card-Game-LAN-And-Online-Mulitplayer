@@ -12,8 +12,13 @@ import '../../domain/entities/online_lobby.dart';
 
 class OnlineConnectionChip extends StatelessWidget {
   final OnlineServerConnectionStatus status;
+  final VoidCallback? onReconnect;
 
-  const OnlineConnectionChip({super.key, required this.status});
+  const OnlineConnectionChip({
+    super.key,
+    required this.status,
+    this.onReconnect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,21 +50,38 @@ class OnlineConnectionChip extends StatelessWidget {
         ),
     };
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.7)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 6),
-          Text(label, style: AppTypography.bodyMedium.copyWith(color: color)),
-        ],
+    return Semantics(
+      button: onReconnect != null,
+      label: label,
+      hint: onReconnect == null ? null : 'online_tap_to_reconnect'.tr(),
+      child: Tooltip(
+        message: onReconnect == null
+            ? 'online_room_connection_ok'.tr()
+            : 'online_tap_to_reconnect'.tr(),
+        child: InkWell(
+          onTap: onReconnect,
+          borderRadius: BorderRadius.circular(20),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withValues(alpha: 0.7)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 15, color: color),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: AppTypography.bodyMedium.copyWith(color: color),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -657,12 +679,10 @@ class OnlineActionBanner extends StatelessWidget {
 
 class OnlineActionErrorBanner extends StatelessWidget {
   final String message;
-  final String? code;
 
   const OnlineActionErrorBanner({
     super.key,
     required this.message,
-    this.code,
   });
 
   @override
@@ -679,7 +699,7 @@ class OnlineActionErrorBanner extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, color: AppColors.error),
           const SizedBox(width: 8),
-          Expanded(child: Text(code == null ? message : '$message ($code)')),
+          Expanded(child: Text(message)),
         ],
       ),
     );

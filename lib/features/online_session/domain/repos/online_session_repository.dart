@@ -17,6 +17,10 @@ abstract class OnlineSessionRepository {
     required String avatarId,
   });
 
+  Future<FailureOrSuccess<OnlineLobby?>> restoreSession();
+
+  Future<FailureOrSuccess<OnlineLobby>> reconnect();
+
   Future<FailureOrSuccess<Unit>> leaveRoom();
 
   Future<FailureOrSuccess<OnlineLobby>> startGame(int expectedStateVersion);

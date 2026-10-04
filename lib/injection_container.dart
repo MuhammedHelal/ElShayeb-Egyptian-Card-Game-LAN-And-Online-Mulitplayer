@@ -53,9 +53,15 @@ Future<void> initDependencies() async {
       httpClient: getIt<http.Client>(),
     ),
   );
+  getIt.registerLazySingleton<OnlineSessionLocalDataSource>(
+    () => SharedPreferencesOnlineSessionLocalDataSource(
+      getIt<SharedPreferences>(),
+    ),
+  );
   getIt.registerLazySingleton<OnlineSessionRepository>(
     () => OnlineSessionRepositoryImpl(
       getIt<OnlineSessionRemoteDataSource>(),
+      getIt<OnlineSessionLocalDataSource>(),
     ),
   );
   getIt.registerLazySingleton(
@@ -66,6 +72,12 @@ Future<void> initDependencies() async {
   );
   getIt.registerLazySingleton(
     () => JoinOnlineRoomUseCase(getIt<OnlineSessionRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => RestoreOnlineSessionUseCase(getIt<OnlineSessionRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => ReconnectOnlineSessionUseCase(getIt<OnlineSessionRepository>()),
   );
   getIt.registerLazySingleton(
     () => LeaveOnlineRoomUseCase(getIt<OnlineSessionRepository>()),
@@ -108,6 +120,8 @@ Future<void> initDependencies() async {
       observeOnlineSession: getIt<ObserveOnlineSessionUseCase>(),
       createOnlineRoom: getIt<CreateOnlineRoomUseCase>(),
       joinOnlineRoom: getIt<JoinOnlineRoomUseCase>(),
+      restoreOnlineSession: getIt<RestoreOnlineSessionUseCase>(),
+      reconnectOnlineSession: getIt<ReconnectOnlineSessionUseCase>(),
       leaveOnlineRoom: getIt<LeaveOnlineRoomUseCase>(),
       startOnlineGame: getIt<StartOnlineGameUseCase>(),
       drawOnlineCard: getIt<DrawOnlineCardUseCase>(),

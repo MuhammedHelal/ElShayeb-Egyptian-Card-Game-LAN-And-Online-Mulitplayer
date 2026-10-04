@@ -41,6 +41,22 @@ class JoinOnlineRoomUseCase {
       );
 }
 
+class RestoreOnlineSessionUseCase {
+  final OnlineSessionRepository _repository;
+
+  const RestoreOnlineSessionUseCase(this._repository);
+
+  Future<FailureOrSuccess<OnlineLobby?>> call() => _repository.restoreSession();
+}
+
+class ReconnectOnlineSessionUseCase {
+  final OnlineSessionRepository _repository;
+
+  const ReconnectOnlineSessionUseCase(this._repository);
+
+  Future<FailureOrSuccess<OnlineLobby>> call() => _repository.reconnect();
+}
+
 class LeaveOnlineRoomUseCase {
   final OnlineSessionRepository _repository;
 

@@ -11,6 +11,8 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
   final ObserveOnlineSessionUseCase _observeOnlineSession;
   final CreateOnlineRoomUseCase _createOnlineRoom;
   final JoinOnlineRoomUseCase _joinOnlineRoom;
+  final RestoreOnlineSessionUseCase _restoreOnlineSession;
+  final ReconnectOnlineSessionUseCase _reconnectOnlineSession;
   final LeaveOnlineRoomUseCase _leaveOnlineRoom;
   final StartOnlineGameUseCase _startOnlineGame;
   final DrawOnlineCardUseCase _drawOnlineCard;
@@ -18,11 +20,16 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
   final StartOnlineRoundUseCase _startOnlineRound;
 
   late final StreamSubscription<OnlineSessionUpdate> _updatesSubscription;
+  bool _restoreAttempted = false;
+  bool _restoreFailed = false;
+  bool _reconnectInFlight = false;
 
   OnlineSessionCubit({
     required ObserveOnlineSessionUseCase observeOnlineSession,
     required CreateOnlineRoomUseCase createOnlineRoom,
     required JoinOnlineRoomUseCase joinOnlineRoom,
+    required RestoreOnlineSessionUseCase restoreOnlineSession,
+    required ReconnectOnlineSessionUseCase reconnectOnlineSession,
     required LeaveOnlineRoomUseCase leaveOnlineRoom,
     required StartOnlineGameUseCase startOnlineGame,
     required DrawOnlineCardUseCase drawOnlineCard,
@@ -31,6 +38,8 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
   })  : _observeOnlineSession = observeOnlineSession,
         _createOnlineRoom = createOnlineRoom,
         _joinOnlineRoom = joinOnlineRoom,
+        _restoreOnlineSession = restoreOnlineSession,
+        _reconnectOnlineSession = reconnectOnlineSession,
         _leaveOnlineRoom = leaveOnlineRoom,
         _startOnlineGame = startOnlineGame,
         _drawOnlineCard = drawOnlineCard,
@@ -45,10 +54,65 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
     );
   }
 
+  Future<void> restoreSession() async {
+    if (_restoreAttempted) return;
+    _restoreAttempted = true;
+    emit(const OnlineSessionLoading(OnlineServerConnectionStatus.connecting));
+    final result = await _restoreOnlineSession();
+    if (isClosed) return;
+    result.fold(
+      (failure) {
+        _restoreFailed = true;
+        emit(OnlineSessionFailure(failure.message, code: failure.code));
+      },
+      (lobby) {
+        _restoreFailed = false;
+        emit(
+          lobby == null
+              ? const OnlineSessionInitial()
+              : OnlineSessionReady(lobby),
+        );
+      },
+    );
+  }
+
+  Future<void> reconnect() async {
+    if (_reconnectInFlight) return;
+    final current = state;
+    if (current is! OnlineSessionReady) return;
+    _reconnectInFlight = true;
+    emit(OnlineSessionReady(
+      current.value,
+      status: OnlineServerConnectionStatus.reconnecting,
+    ));
+    final result = await _reconnectOnlineSession();
+    _reconnectInFlight = false;
+    if (isClosed) return;
+    result.fold(
+      (failure) => emit(OnlineSessionReady(
+        current.value,
+        status: OnlineServerConnectionStatus.disconnected,
+        actionErrorMessage: failure.message,
+        actionErrorCode: failure.code,
+      )),
+      (lobby) => emit(OnlineSessionReady(lobby)),
+    );
+  }
+
+  Future<void> onAppResumed() async {
+    if (state case OnlineSessionReady()) {
+      await reconnect();
+    } else if (_restoreFailed) {
+      _restoreAttempted = false;
+      await restoreSession();
+    }
+  }
+
   Future<void> createRoom({
     required String playerName,
     required String avatarId,
   }) async {
+    _restoreFailed = false;
     emit(const OnlineSessionLoading(OnlineServerConnectionStatus.connecting));
     final result = await _createOnlineRoom(
       playerName: playerName,
@@ -68,6 +132,7 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
     required String playerName,
     required String avatarId,
   }) async {
+    _restoreFailed = false;
     emit(const OnlineSessionLoading(OnlineServerConnectionStatus.connecting));
     final result = await _joinOnlineRoom(
       roomCode: roomCode,
@@ -98,6 +163,7 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
     final current = state;
     if (current is! OnlineSessionReady ||
         current.isActionInFlight ||
+        current.connectionStatus != OnlineServerConnectionStatus.connected ||
         !current.value.canStart) {
       return;
     }
@@ -112,6 +178,7 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
     final current = state;
     if (current is! OnlineSessionReady ||
         current.isActionInFlight ||
+        current.connectionStatus != OnlineServerConnectionStatus.connected ||
         !current.value.isMyTurn) {
       return;
     }
@@ -132,6 +199,7 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
     final current = state;
     if (current is! OnlineSessionReady ||
         current.isActionInFlight ||
+        current.connectionStatus != OnlineServerConnectionStatus.connected ||
         current.value.phase != OnlineRoomPhase.playing) {
       return;
     }
@@ -146,6 +214,7 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
     final current = state;
     if (current is! OnlineSessionReady ||
         current.isActionInFlight ||
+        current.connectionStatus != OnlineServerConnectionStatus.connected ||
         !current.value.canStartNewRound) {
       return;
     }

@@ -5,4 +5,5 @@ abstract class OnlineServerConstants {
       'wss://elshayeb-online.elshayeb.workers.dev';
   static const int protocolVersion = 2;
   static const Duration commandTimeout = Duration(seconds: 12);
+  static const Duration heartbeatInterval = Duration(seconds: 20);
 }

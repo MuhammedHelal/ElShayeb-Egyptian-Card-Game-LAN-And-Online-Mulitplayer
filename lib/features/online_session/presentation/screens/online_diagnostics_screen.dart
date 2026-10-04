@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/widgets/app_resume_listener.dart';
 import '../../../../presentation/theme/app_theme.dart';
 import '../../domain/entities/online_lobby.dart';
 import '../cubit/online_session_cubit.dart';
@@ -39,48 +40,60 @@ class _OnlineDiagnosticsScreenState extends State<OnlineDiagnosticsScreen> {
   @override
   Widget build(BuildContext context) {
     context.locale;
-    return Scaffold(
-      appBar: AppBar(title: Text('online_diagnostics_title'.tr())),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.tableGradient),
-        child: SafeArea(
-          top: false,
-          child: BlocBuilder<OnlineSessionCubit, OnlineSessionState>(
-            builder: (context, state) => ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                OnlineConnectionChip(status: state.connectionStatus),
-                const SizedBox(height: 16),
-                _ConnectionForm(
-                  nameController: _nameController,
-                  roomCodeController: _roomCodeController,
-                  isLoading: state is OnlineSessionLoading,
-                  onCreate: () => _createRoom(context),
-                  onJoin: () => _joinRoom(context),
-                ),
-                const SizedBox(height: 16),
-                switch (state) {
-                  OnlineSessionInitial() => _DiagnosticCard(
-                      title: 'State: initial',
-                      children: const [Text('No active server room.')],
-                    ),
-                  OnlineSessionLoading() => const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: CircularProgressIndicator(),
+    final cubit = context.read<OnlineSessionCubit>();
+    return AppResumeListener(
+      onInitial: cubit.restoreSession,
+      onResume: cubit.onAppResumed,
+      child: Scaffold(
+        appBar: AppBar(title: Text('online_diagnostics_title'.tr())),
+        body: Container(
+          decoration: const BoxDecoration(gradient: AppColors.tableGradient),
+          child: SafeArea(
+            top: false,
+            child: BlocBuilder<OnlineSessionCubit, OnlineSessionState>(
+              builder: (context, state) => ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  OnlineConnectionChip(
+                    status: state.connectionStatus,
+                    onReconnect: state is OnlineSessionReady &&
+                            state.connectionStatus !=
+                                OnlineServerConnectionStatus.connected
+                        ? context.read<OnlineSessionCubit>().reconnect
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _ConnectionForm(
+                    nameController: _nameController,
+                    roomCodeController: _roomCodeController,
+                    isLoading: state is OnlineSessionLoading,
+                    onCreate: () => _createRoom(context),
+                    onJoin: () => _joinRoom(context),
+                  ),
+                  const SizedBox(height: 16),
+                  switch (state) {
+                    OnlineSessionInitial() => _DiagnosticCard(
+                        title: 'State: initial',
+                        children: const [Text('No active server room.')],
                       ),
-                    ),
-                  OnlineSessionFailure(:final message, :final code) =>
-                    _DiagnosticCard(
-                      title: 'State: failure',
-                      children: [
-                        Text('message: $message'),
-                        Text('code: ${code ?? '-'}'),
-                      ],
-                    ),
-                  OnlineSessionReady() => _ReadyDiagnostics(state: state),
-                },
-              ],
+                    OnlineSessionLoading() => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                    OnlineSessionFailure(:final message, :final code) =>
+                      _DiagnosticCard(
+                        title: 'State: failure',
+                        children: [
+                          Text('message: $message'),
+                          Text('code: ${code ?? '-'}'),
+                        ],
+                      ),
+                    OnlineSessionReady() => _ReadyDiagnostics(state: state),
+                  },
+                ],
+              ),
             ),
           ),
         ),
@@ -187,6 +200,8 @@ class _ReadyDiagnostics extends StatelessWidget {
     final lobby = state.value;
     final cubit = context.read<OnlineSessionCubit>();
     final drawTarget = lobby.drawFromPlayer;
+    final isUnavailable = state.isActionInFlight ||
+        state.connectionStatus != OnlineServerConnectionStatus.connected;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -255,7 +270,7 @@ class _ReadyDiagnostics extends StatelessWidget {
           children: [
             if (lobby.phase == OnlineRoomPhase.lobby)
               ElevatedButton(
-                onPressed: lobby.canStart && !state.isActionInFlight
+                onPressed: lobby.canStart && !isUnavailable
                     ? cubit.startGame
                     : null,
                 child: const Text('start_game'),
@@ -270,7 +285,7 @@ class _ReadyDiagnostics extends StatelessWidget {
                         index < drawTarget.cardCount;
                         index += 1)
                       OutlinedButton(
-                        onPressed: state.isActionInFlight
+                        onPressed: isUnavailable
                             ? null
                             : () => cubit.drawCard(index),
                         child: Text('draw_card[$index]'),
@@ -279,13 +294,13 @@ class _ReadyDiagnostics extends StatelessWidget {
                 ),
               const SizedBox(height: 8),
               OutlinedButton(
-                onPressed: state.isActionInFlight ? null : cubit.shuffleHand,
+                onPressed: isUnavailable ? null : cubit.shuffleHand,
                 child: const Text('shuffle_hand'),
               ),
             ],
             if (lobby.phase == OnlineRoomPhase.roundEnd)
               ElevatedButton(
-                onPressed: lobby.canStartNewRound && !state.isActionInFlight
+                onPressed: lobby.canStartNewRound && !isUnavailable
                     ? cubit.startNewRound
                     : null,
                 child: const Text('start_round'),

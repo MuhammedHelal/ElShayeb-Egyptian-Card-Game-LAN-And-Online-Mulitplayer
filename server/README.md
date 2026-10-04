@@ -20,6 +20,12 @@ The deployed development URL is:
 
 `https://elshayeb-online.elshayeb.workers.dev`
 
-The current milestone supports authenticated lobby rooms only. Card gameplay
-remains disabled until the authoritative rules and private player views are
-implemented and tested.
+The server owns the 49-card deck, private hands, turns, legal draw target, pair
+removal, finish positions, round scores, disconnect progression, and reconnect
+state. Clients submit only authenticated intents with an
+`expectedStateVersion`; stale or illegal actions are rejected.
+
+Supported room commands are `create_room`, `join_room`, `resume_room`,
+`leave_room`, `start_game`, `draw_card`, `shuffle_hand`, and
+`start_new_round`. Each `room_snapshot` contains the receiving player's hand
+and only public card counts for every opponent.

@@ -23,6 +23,12 @@ abstract class OnlineSessionRemoteDataSource {
     required String avatarId,
   });
 
+  Future<OnlineLobbyModel> resumeRoom({
+    required String roomCode,
+    required String playerName,
+    required String avatarId,
+  });
+
   Future<void> leaveRoom();
 
   Future<OnlineLobbyModel> startGame(int expectedStateVersion);
@@ -51,10 +57,13 @@ class CloudflareOnlineSessionDataSource
   StreamSubscription<dynamic>? _socketSubscription;
   Completer<void>? _connectionReady;
   Timer? _reconnectTimer;
+  Timer? _heartbeatTimer;
   int _connectionGeneration = 0;
   int _reconnectAttempt = 0;
+  bool _heartbeatInFlight = false;
   bool _intentionalClose = false;
   bool _socketAvailable = false;
+  bool _canAutoReconnect = false;
   String? _roomCode;
   String? _playerName;
   String? _avatarId;
@@ -75,27 +84,46 @@ class CloudflareOnlineSessionDataSource
     required String playerName,
     required String avatarId,
   }) async {
+    for (var attempt = 0; attempt < 3; attempt += 1) {
+      final roomCode = await _allocateRoomCode();
+      try {
+        return await _connectAndEnter(
+          roomCode: roomCode,
+          playerName: playerName,
+          avatarId: avatarId,
+          commandType: 'create_room',
+        );
+      } on OnlineProtocolException catch (error) {
+        if (error.code != 'room_already_exists' || attempt == 2) rethrow;
+      }
+    }
+    throw const OnlineProtocolException(
+      'room_code_failed',
+      'A room could not be created right now.',
+    );
+  }
+
+  Future<String> _allocateRoomCode() async {
     final response = await _httpClient.post(
       Uri.parse('${OnlineServerConstants.httpsBaseUrl}/room-code'),
     );
     if (response.statusCode != 201) {
       throw const OnlineProtocolException(
         'room_code_failed',
-        'The online server could not allocate a room code.',
+        'A room could not be created right now.',
       );
     }
-    final body = jsonDecode(response.body);
-    if (body is! Map<String, dynamic> || body['roomCode'] is! String) {
-      throw const OnlineProtocolException(
-        'invalid_room_code',
-        'The online server returned an invalid room code.',
-      );
+    try {
+      final body = jsonDecode(response.body);
+      if (body is Map<String, dynamic> && body['roomCode'] is String) {
+        return body['roomCode'] as String;
+      }
+    } on FormatException {
+      // Converted to a stable protocol error below.
     }
-    return _connectAndEnter(
-      roomCode: body['roomCode'] as String,
-      playerName: playerName,
-      avatarId: avatarId,
-      commandType: 'create_room',
+    throw const OnlineProtocolException(
+      'invalid_room_code',
+      'A room could not be created right now.',
     );
   }
 
@@ -120,18 +148,40 @@ class CloudflareOnlineSessionDataSource
     );
   }
 
+  @override
+  Future<OnlineLobbyModel> resumeRoom({
+    required String roomCode,
+    required String playerName,
+    required String avatarId,
+  }) {
+    return _connectAndEnter(
+      roomCode: roomCode.trim().toUpperCase(),
+      playerName: playerName,
+      avatarId: avatarId,
+      commandType: 'resume_room',
+    );
+  }
+
   Future<OnlineLobbyModel> _connectAndEnter({
     required String roomCode,
     required String playerName,
     required String avatarId,
     required String commandType,
     bool reconnecting = false,
+    bool resetReconnectAttempts = true,
   }) async {
+    if (resetReconnectAttempts) {
+      _reconnectAttempt = 0;
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+    }
     _roomCode = roomCode;
     _playerName = playerName;
     _avatarId = avatarId;
     _intentionalClose = false;
     _socketAvailable = false;
+    _canAutoReconnect = commandType == 'resume_room' || _canAutoReconnect;
+    _stopHeartbeat();
     _emitConnection(
       reconnecting
           ? OnlineConnectionStatusModel.reconnecting
@@ -153,45 +203,67 @@ class CloudflareOnlineSessionDataSource
       onError: (Object error, StackTrace stackTrace) {
         if (generation != _connectionGeneration) return;
         _socketAvailable = false;
-        _failPending(
-          const OnlineProtocolException(
-            'socket_error',
-            'The connection to the online server failed.',
-          ),
+        _stopHeartbeat();
+        const exception = OnlineProtocolException(
+          'socket_error',
+          'The connection to the online server failed.',
         );
+        _completeConnectionFailure(exception);
+        _failPending(exception);
         _scheduleReconnect();
       },
       onDone: () {
         if (generation != _connectionGeneration) return;
         _socketAvailable = false;
+        _stopHeartbeat();
+        const exception = OnlineProtocolException(
+          'socket_error',
+          'The connection to the online server failed.',
+        );
+        _completeConnectionFailure(exception);
+        _failPending(exception);
         _emitConnection(OnlineConnectionStatusModel.disconnected);
         if (!_intentionalClose) _scheduleReconnect();
       },
     );
 
-    await _connectionReady!.future.timeout(
-      OnlineServerConstants.commandTimeout,
-      onTimeout: () => throw const OnlineProtocolException(
-        'connection_timeout',
-        'The online server did not answer in time.',
-      ),
-    );
-    _socketAvailable = true;
-    _emitConnection(OnlineConnectionStatusModel.authenticating);
-    await _sendAndWait(
-      type: 'authenticate',
-      payload: {'accessToken': session.accessToken},
-      expectedType: 'authenticated',
-    );
-    final snapshot = await _sendAndWait(
-      type: commandType,
-      payload: {'name': playerName, 'avatarId': avatarId},
-      expectedType: 'room_snapshot',
-    );
-    final lobby = OnlineLobbyModel.fromProtocolMessage(snapshot);
-    _reconnectAttempt = 0;
-    _emitConnection(OnlineConnectionStatusModel.connected);
-    return lobby;
+    try {
+      await _connectionReady!.future.timeout(
+        OnlineServerConstants.commandTimeout,
+        onTimeout: () => throw const OnlineProtocolException(
+          'connection_timeout',
+          'The online server did not answer in time.',
+        ),
+      );
+      _socketAvailable = true;
+      _emitConnection(OnlineConnectionStatusModel.authenticating);
+      await _sendAndWait(
+        type: 'authenticate',
+        payload: {'accessToken': session.accessToken},
+        expectedType: 'authenticated',
+      );
+      final snapshot = await _sendAndWait(
+        type: commandType,
+        payload: {'name': playerName, 'avatarId': avatarId},
+        expectedType: 'room_snapshot',
+      );
+      final lobby = OnlineLobbyModel.fromProtocolMessage(snapshot);
+      _canAutoReconnect = true;
+      _reconnectAttempt = 0;
+      _emitConnection(OnlineConnectionStatusModel.connected);
+      _startHeartbeat();
+      return lobby;
+    } on Exception {
+      if (generation == _connectionGeneration) {
+        _connectionGeneration += 1;
+        await _socketSubscription?.cancel();
+        await _channel?.sink.close();
+        _channel = null;
+        _socketAvailable = false;
+        _stopHeartbeat();
+      }
+      rethrow;
+    }
   }
 
   Future<Session> _validSession() async {
@@ -228,15 +300,15 @@ class CloudflareOnlineSessionDataSource
     final actionId = _uuid.v4();
     final completer = Completer<Map<String, dynamic>>();
     _pendingCommands[actionId] = completer;
-    _channel!.sink.add(jsonEncode({
-      'protocolVersion': OnlineServerConstants.protocolVersion,
-      'type': type,
-      'actionId': actionId,
-      if (expectedStateVersion != null)
-        'expectedStateVersion': expectedStateVersion,
-      'payload': payload,
-    }));
     try {
+      _channel!.sink.add(jsonEncode({
+        'protocolVersion': OnlineServerConstants.protocolVersion,
+        'type': type,
+        'actionId': actionId,
+        if (expectedStateVersion != null)
+          'expectedStateVersion': expectedStateVersion,
+        'payload': payload,
+      }));
       final message = await completer.future.timeout(
         OnlineServerConstants.commandTimeout,
         onTimeout: () => throw OnlineProtocolException(
@@ -316,23 +388,19 @@ class CloudflareOnlineSessionDataSource
 
   void _scheduleReconnect() {
     if (_intentionalClose ||
+        !_canAutoReconnect ||
         _roomCode == null ||
         _playerName == null ||
         _avatarId == null) {
       return;
     }
     if (_reconnectTimer?.isActive ?? false) return;
-    if (_reconnectAttempt >= 3) {
-      _updates.add(const OnlineErrorUpdateModel(
-        'reconnect_failed',
-        'Could not reconnect to the online room.',
-      ));
-      return;
-    }
-    final delay = Duration(seconds: 1 << _reconnectAttempt);
+    final exponent = _reconnectAttempt > 5 ? 5 : _reconnectAttempt;
+    final delay = Duration(seconds: 1 << exponent);
     _reconnectAttempt += 1;
     _emitConnection(OnlineConnectionStatusModel.reconnecting);
     _reconnectTimer = Timer(delay, () async {
+      _reconnectTimer = null;
       try {
         await _connectAndEnter(
           roomCode: _roomCode!,
@@ -340,13 +408,53 @@ class CloudflareOnlineSessionDataSource
           avatarId: _avatarId!,
           commandType: 'resume_room',
           reconnecting: true,
+          resetReconnectAttempts: false,
         );
-      } on Exception catch (error) {
-        _updates
-            .add(OnlineErrorUpdateModel('reconnect_failed', error.toString()));
+      } on OnlineProtocolException catch (error) {
+        if (_isTerminalResumeError(error.code)) {
+          _canAutoReconnect = false;
+          _emitConnection(OnlineConnectionStatusModel.disconnected);
+          _updates.add(OnlineErrorUpdateModel(error.code, error.message));
+        } else {
+          _scheduleReconnect();
+        }
+      } on Exception {
         _scheduleReconnect();
       }
     });
+  }
+
+  void _startHeartbeat() {
+    _stopHeartbeat();
+    _heartbeatTimer = Timer.periodic(
+      OnlineServerConstants.heartbeatInterval,
+      (_) => _sendHeartbeat(),
+    );
+  }
+
+  Future<void> _sendHeartbeat() async {
+    if (_heartbeatInFlight || !_socketAvailable || _channel == null) return;
+    _heartbeatInFlight = true;
+    try {
+      await _sendAndWait(
+        type: 'ping',
+        payload: const {},
+        expectedType: 'pong',
+      );
+    } on Exception {
+      _socketAvailable = false;
+      _stopHeartbeat();
+      _emitConnection(OnlineConnectionStatusModel.reconnecting);
+      await _channel?.sink.close();
+      _scheduleReconnect();
+    } finally {
+      _heartbeatInFlight = false;
+    }
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
   }
 
   void _emitConnection(OnlineConnectionStatusModel status) {
@@ -362,26 +470,44 @@ class CloudflareOnlineSessionDataSource
     _pendingCommands.clear();
   }
 
+  void _completeConnectionFailure(Object error) {
+    final ready = _connectionReady;
+    if (ready != null && !ready.isCompleted) ready.completeError(error);
+  }
+
+  bool _isTerminalResumeError(String code) {
+    return code == 'room_not_found' ||
+        code == 'player_not_found' ||
+        code == 'game_in_progress' ||
+        code == 'authentication_failed';
+  }
+
   @override
   Future<void> leaveRoom() async {
     _intentionalClose = true;
     _reconnectTimer?.cancel();
-    if (_channel != null && _roomCode != null && _socketAvailable) {
-      await _sendAndWait(
-        type: 'leave_room',
-        payload: const {},
-        expectedType: 'left_room',
-      );
+    _stopHeartbeat();
+    try {
+      if (_channel != null && _roomCode != null && _socketAvailable) {
+        await _sendAndWait(
+          type: 'leave_room',
+          payload: const {},
+          expectedType: 'left_room',
+        );
+      }
+    } finally {
+      _roomCode = null;
+      _playerName = null;
+      _avatarId = null;
+      _connectionGeneration += 1;
+      await _socketSubscription?.cancel();
+      await _channel?.sink.close();
+      _channel = null;
+      _socketAvailable = false;
+      _canAutoReconnect = false;
+      _reconnectAttempt = 0;
+      _emitConnection(OnlineConnectionStatusModel.disconnected);
     }
-    _roomCode = null;
-    _playerName = null;
-    _avatarId = null;
-    _connectionGeneration += 1;
-    await _socketSubscription?.cancel();
-    await _channel?.sink.close();
-    _channel = null;
-    _socketAvailable = false;
-    _emitConnection(OnlineConnectionStatusModel.disconnected);
   }
 
   @override

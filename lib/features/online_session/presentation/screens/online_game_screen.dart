@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/widgets/app_resume_listener.dart';
 import '../../../../presentation/theme/app_theme.dart';
 import '../../domain/entities/online_lobby.dart';
 import '../cubit/online_session_cubit.dart';
@@ -37,63 +38,80 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
   @override
   Widget build(BuildContext context) {
     context.locale;
-    return Scaffold(
-      appBar: AppBar(
-        title: BlocSelector<OnlineSessionCubit, OnlineSessionState, String?>(
-          selector: (state) =>
-              state is OnlineSessionReady ? state.value.roomCode : null,
-          builder: (context, roomCode) => Text(
-            roomCode == null
-                ? 'online_lobby_title'.tr()
-                : 'online_room_title'.tr(namedArgs: {'code': roomCode}),
-          ),
-        ),
-        actions: [
-          BlocSelector<OnlineSessionCubit, OnlineSessionState,
-              OnlineServerConnectionStatus>(
-            selector: (state) => state.connectionStatus,
-            builder: (context, status) => Padding(
-              padding: const EdgeInsetsDirectional.only(end: 8),
-              child: Center(child: OnlineConnectionChip(status: status)),
+    final cubit = context.read<OnlineSessionCubit>();
+    return AppResumeListener(
+      onInitial: cubit.restoreSession,
+      onResume: cubit.onAppResumed,
+      child: Scaffold(
+        appBar: AppBar(
+          title: BlocSelector<OnlineSessionCubit, OnlineSessionState, String?>(
+            selector: (state) =>
+                state is OnlineSessionReady ? state.value.roomCode : null,
+            builder: (context, roomCode) => Text(
+              roomCode == null
+                  ? 'online_lobby_title'.tr()
+                  : 'online_room_title'.tr(namedArgs: {'code': roomCode}),
             ),
           ),
-          BlocSelector<OnlineSessionCubit, OnlineSessionState, bool>(
-            selector: (state) => state is OnlineSessionReady,
-            builder: (context, isInRoom) => isInRoom
-                ? IconButton(
-                    tooltip: 'online_leave_room'.tr(),
-                    onPressed: () => _confirmLeave(context),
-                    icon: const Icon(Icons.logout),
-                  )
-                : const SizedBox.shrink(),
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.tableGradient),
-        child: SafeArea(
-          top: false,
-          child: BlocBuilder<OnlineSessionCubit, OnlineSessionState>(
-            builder: (context, state) => switch (state) {
-              OnlineSessionInitial() => _RoomEntryView(
-                  nameController: _nameController,
-                  roomCodeController: _roomCodeController,
-                  onCreate: () => _createRoom(context),
-                  onJoin: () => _joinRoom(context),
-                ),
-              OnlineSessionLoading() => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              OnlineSessionFailure(:final message, :final code) =>
-                _RoomEntryView(
-                  nameController: _nameController,
-                  roomCodeController: _roomCodeController,
-                  errorMessage: code == null ? message : '$message ($code)',
-                  onCreate: () => _createRoom(context),
-                  onJoin: () => _joinRoom(context),
-                ),
-              OnlineSessionReady() => _ReadyRoomView(state: state),
-            },
+          actions: [
+            BlocSelector<OnlineSessionCubit, OnlineSessionState,
+                (bool, OnlineServerConnectionStatus)>(
+              selector: (state) => (
+                state is OnlineSessionReady,
+                state.connectionStatus,
+              ),
+              builder: (context, connection) => connection.$1
+                  ? Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 8),
+                      child: Center(
+                        child: OnlineConnectionChip(
+                          status: connection.$2,
+                          onReconnect: connection.$2 ==
+                                  OnlineServerConnectionStatus.connected
+                              ? null
+                              : context.read<OnlineSessionCubit>().reconnect,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            BlocSelector<OnlineSessionCubit, OnlineSessionState, bool>(
+              selector: (state) => state is OnlineSessionReady,
+              builder: (context, isInRoom) => isInRoom
+                  ? IconButton(
+                      tooltip: 'online_leave_room'.tr(),
+                      onPressed: () => _confirmLeave(context),
+                      icon: const Icon(Icons.logout),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+        body: Container(
+          decoration: const BoxDecoration(gradient: AppColors.tableGradient),
+          child: SafeArea(
+            top: false,
+            child: BlocBuilder<OnlineSessionCubit, OnlineSessionState>(
+              builder: (context, state) => switch (state) {
+                OnlineSessionInitial() => _RoomEntryView(
+                    nameController: _nameController,
+                    roomCodeController: _roomCodeController,
+                    onCreate: () => _createRoom(context),
+                    onJoin: () => _joinRoom(context),
+                  ),
+                OnlineSessionLoading() => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                OnlineSessionFailure(:final code) => _RoomEntryView(
+                    nameController: _nameController,
+                    roomCodeController: _roomCodeController,
+                    errorMessage: _onlineErrorTranslationKey(code).tr(),
+                    onCreate: () => _createRoom(context),
+                    onJoin: () => _joinRoom(context),
+                  ),
+                OnlineSessionReady() => _ReadyRoomView(state: state),
+              },
+            ),
           ),
         ),
       ),
@@ -163,12 +181,13 @@ class _ReadyRoomView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<OnlineSessionCubit>();
+    final isUnavailable = state.isActionInFlight ||
+        state.connectionStatus != OnlineServerConnectionStatus.connected;
     return Column(
       children: [
-        if (state.actionErrorMessage case final message?)
+        if (state.actionErrorMessage != null)
           OnlineActionErrorBanner(
-            message: message,
-            code: state.actionErrorCode,
+            message: _onlineErrorTranslationKey(state.actionErrorCode).tr(),
           ),
         if (state.connectionStatus == OnlineServerConnectionStatus.reconnecting)
           Container(
@@ -188,18 +207,18 @@ class _ReadyRoomView extends StatelessWidget {
           child: switch (state.value.phase) {
             OnlineRoomPhase.lobby => OnlineLobbyView(
                 lobby: state.value,
-                isActionInFlight: state.isActionInFlight,
+                isActionInFlight: isUnavailable,
                 onStartGame: cubit.startGame,
               ),
             OnlineRoomPhase.playing => OnlinePlayingView(
                 lobby: state.value,
-                isActionInFlight: state.isActionInFlight,
+                isActionInFlight: isUnavailable,
                 onDrawCard: cubit.drawCard,
                 onShuffle: cubit.shuffleHand,
               ),
             OnlineRoomPhase.roundEnd => OnlineRoundEndView(
                 lobby: state.value,
-                isActionInFlight: state.isActionInFlight,
+                isActionInFlight: isUnavailable,
                 onStartNewRound: cubit.startNewRound,
               ),
           },
@@ -331,4 +350,17 @@ class _UpperCaseTextFormatter extends TextInputFormatter {
   ) {
     return newValue.copyWith(text: newValue.text.toUpperCase());
   }
+}
+
+String _onlineErrorTranslationKey(String? code) {
+  return switch (code) {
+    'invalid_room_code' => 'online_error_invalid_room',
+    'room_not_found' => 'online_error_room_not_found',
+    'room_full' => 'online_error_room_full',
+    'game_in_progress' => 'online_error_game_in_progress',
+    'invalid_player_name' => 'online_error_name',
+    'authentication_failed' => 'online_error_authentication',
+    'stale_state' => 'online_error_state_changed',
+    _ => 'online_error_connection',
+  };
 }
