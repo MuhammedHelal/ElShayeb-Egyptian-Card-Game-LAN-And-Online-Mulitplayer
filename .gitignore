@@ -44,7 +44,17 @@ migrate_working_dir/
 /.pub-cache/
 /.dart-appdata/
 .AGENTS.md
-/server/
+/server/*
+!/server/src/
+!/server/src/**
+!/server/test/
+!/server/test/**
+!/server/package.json
+!/server/package-lock.json
+!/server/tsconfig.json
+!/server/wrangler.jsonc
+!/server/README.md
+!/server/.dev.vars.example
 # Symbolication related
 app.*.symbols
 

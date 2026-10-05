@@ -131,6 +131,7 @@ class OnlineLobbyPlayerModel {
 class OnlineGameActionModel {
   final OnlineGameActionType type;
   final String actorUserId;
+  final String? actorName;
   final String? targetUserId;
   final bool? madePair;
   final OnlinePlayingCardModel? drawnCard;
@@ -138,6 +139,7 @@ class OnlineGameActionModel {
   const OnlineGameActionModel({
     required this.type,
     required this.actorUserId,
+    required this.actorName,
     required this.targetUserId,
     required this.madePair,
     required this.drawnCard,
@@ -146,12 +148,14 @@ class OnlineGameActionModel {
   factory OnlineGameActionModel.fromJson(Map<String, dynamic> json) {
     final type = _parseEnum(OnlineGameActionType.values, json['type']);
     final actorUserId = json['actorUserId'];
+    final actorName = json['actorName'];
     final targetUserId = json['targetUserId'];
     final madePair = json['madePair'];
     final rawCard = json['drawnCard'];
     if (type == null ||
         actorUserId is! String ||
         actorUserId.isEmpty ||
+        (actorName != null && actorName is! String) ||
         (targetUserId != null && targetUserId is! String) ||
         (madePair != null && madePair is! bool) ||
         (rawCard != null && rawCard is! Map<String, dynamic>)) {
@@ -163,6 +167,7 @@ class OnlineGameActionModel {
     return OnlineGameActionModel(
       type: type,
       actorUserId: actorUserId,
+      actorName: actorName as String?,
       targetUserId: targetUserId as String?,
       madePair: madePair as bool?,
       drawnCard:
@@ -173,6 +178,7 @@ class OnlineGameActionModel {
   OnlineGameAction toEntity() => OnlineGameAction(
         type: type,
         actorUserId: actorUserId,
+        actorName: actorName,
         targetUserId: targetUserId,
         madePair: madePair,
         drawnCard: drawnCard?.toEntity(),

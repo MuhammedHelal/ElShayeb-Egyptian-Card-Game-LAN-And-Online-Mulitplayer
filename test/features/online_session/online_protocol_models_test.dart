@@ -49,6 +49,20 @@ void main() {
         throwsA(isA<OnlineProtocolException>()),
       );
     });
+
+    test('maps a departed player action after that player is removed', () {
+      final snapshot = _snapshot();
+      (snapshot['payload'] as Map<String, dynamic>)['lastAction'] = {
+        'type': 'player_left',
+        'actorUserId': 'departed-user',
+        'actorName': 'Player 3',
+      };
+
+      final lobby = OnlineLobbyModel.fromProtocolMessage(snapshot).toEntity();
+
+      expect(lobby.lastAction?.type, OnlineGameActionType.playerLeft);
+      expect(lobby.lastAction?.actorName, 'Player 3');
+    });
   });
 }
 

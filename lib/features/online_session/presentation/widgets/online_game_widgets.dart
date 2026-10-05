@@ -647,6 +647,10 @@ class OnlineActionBanner extends StatelessWidget {
       OnlineGameActionType.handShuffled => 'event_player_shuffled'.tr(
           namedArgs: {'name': actor?.name ?? 'online_player'.tr()},
         ),
+      OnlineGameActionType.playerLeft =>
+        'online_player_left_disconnected'.tr(namedArgs: {
+          'name': action.actorName ?? actor?.name ?? 'online_player'.tr(),
+        }),
       OnlineGameActionType.cardDrawn =>
         action.actorUserId == lobby.localUserId && action.drawnCard != null
             ? (action.madePair == true

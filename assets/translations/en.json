@@ -129,6 +129,7 @@
   "event_player_finished": "{name} finished!",
   "event_player_shuffled": "{name} shuffled their hand",
   "event_player_disconnected": "{name} disconnected",
+  "online_player_left_disconnected": "{name} left the match (disconnected). Their cards were redistributed.",
   "event_player_reconnected": "{name} reconnected",
   "event_game_started": "Game started!",
   "event_round_ended": "Round ended!",

@@ -6,7 +6,13 @@ enum OnlinePlayerStatus { playing, finished, shayeb }
 
 enum OnlineCardSuit { hearts, diamonds, clubs, spades }
 
-enum OnlineGameActionType { gameStarted, cardDrawn, handShuffled, roundStarted }
+enum OnlineGameActionType {
+  gameStarted,
+  cardDrawn,
+  handShuffled,
+  roundStarted,
+  playerLeft,
+}
 
 class OnlinePlayingCard extends Equatable {
   final String id;
@@ -37,6 +43,7 @@ class OnlinePlayingCard extends Equatable {
 class OnlineGameAction extends Equatable {
   final OnlineGameActionType type;
   final String actorUserId;
+  final String? actorName;
   final String? targetUserId;
   final bool? madePair;
   final OnlinePlayingCard? drawnCard;
@@ -44,6 +51,7 @@ class OnlineGameAction extends Equatable {
   const OnlineGameAction({
     required this.type,
     required this.actorUserId,
+    this.actorName,
     this.targetUserId,
     this.madePair,
     this.drawnCard,
@@ -53,6 +61,7 @@ class OnlineGameAction extends Equatable {
   List<Object?> get props => [
         type,
         actorUserId,
+        actorName,
         targetUserId,
         madePair,
         drawnCard,
