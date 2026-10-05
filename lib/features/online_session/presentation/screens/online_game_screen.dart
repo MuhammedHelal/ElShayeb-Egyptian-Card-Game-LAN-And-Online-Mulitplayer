@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/localization/localization_service.dart';
 import '../../../../core/widgets/app_resume_listener.dart';
+import '../../../../presentation/cubit/settings/settings_cubit.dart';
 import '../../../../presentation/theme/app_theme.dart';
 import '../../domain/entities/online_lobby.dart';
 import '../cubit/online_session_cubit.dart';
@@ -17,19 +19,25 @@ class OnlineGameScreen extends StatefulWidget {
   State<OnlineGameScreen> createState() => _OnlineGameScreenState();
 }
 
-class _OnlineGameScreenState extends State<OnlineGameScreen> {
+class _OnlineGameScreenState extends State<OnlineGameScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
   late final TextEditingController _nameController;
   late final TextEditingController _roomCodeController;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
+    _tabController = TabController(length: 2, vsync: this);
+    _nameController = TextEditingController(
+      text: context.read<SettingsCubit>().state.playerName,
+    );
     _roomCodeController = TextEditingController();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _nameController.dispose();
     _roomCodeController.dispose();
     super.dispose();
@@ -42,67 +50,58 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     return AppResumeListener(
       onInitial: cubit.restoreSession,
       onResume: cubit.onAppResumed,
-      child: Scaffold(
-        appBar: AppBar(
-          title: BlocSelector<OnlineSessionCubit, OnlineSessionState, String?>(
-            selector: (state) =>
-                state is OnlineSessionReady ? state.value.roomCode : null,
-            builder: (context, roomCode) => Text(
-              roomCode == null
-                  ? 'online_lobby_title'.tr()
-                  : 'online_room_title'.tr(namedArgs: {'code': roomCode}),
-            ),
-          ),
-          actions: [
-            BlocSelector<OnlineSessionCubit, OnlineSessionState,
-                (bool, OnlineServerConnectionStatus)>(
-              selector: (state) => (
-                state is OnlineSessionReady,
-                state.connectionStatus,
-              ),
-              builder: (context, connection) => connection.$1
-                  ? Padding(
+      child: BlocBuilder<OnlineSessionCubit, OnlineSessionState>(
+        builder: (context, state) => Scaffold(
+          appBar: state is OnlineSessionReady
+              ? AppBar(
+                  title: Text(
+                    'online_room_title'.tr(
+                      namedArgs: {'code': state.value.roomCode},
+                    ),
+                  ),
+                  actions: [
+                    Padding(
                       padding: const EdgeInsetsDirectional.only(end: 8),
                       child: Center(
                         child: OnlineConnectionChip(
-                          status: connection.$2,
-                          onReconnect: connection.$2 ==
+                          status: state.connectionStatus,
+                          onReconnect: state.connectionStatus ==
                                   OnlineServerConnectionStatus.connected
                               ? null
                               : context.read<OnlineSessionCubit>().reconnect,
                         ),
                       ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            BlocSelector<OnlineSessionCubit, OnlineSessionState, bool>(
-              selector: (state) => state is OnlineSessionReady,
-              builder: (context, isInRoom) => isInRoom
-                  ? IconButton(
+                    ),
+                    IconButton(
                       tooltip: 'online_leave_room'.tr(),
                       onPressed: () => _confirmLeave(context),
                       icon: const Icon(Icons.logout),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ],
-        ),
-        body: Container(
-          decoration: const BoxDecoration(gradient: AppColors.tableGradient),
-          child: SafeArea(
-            top: false,
-            child: BlocBuilder<OnlineSessionCubit, OnlineSessionState>(
-              builder: (context, state) => switch (state) {
+                    ),
+                  ],
+                )
+              : null,
+          body: Container(
+            decoration: const BoxDecoration(gradient: AppColors.tableGradient),
+            child: SafeArea(
+              top: state is! OnlineSessionReady,
+              child: switch (state) {
                 OnlineSessionInitial() => _RoomEntryView(
+                    tabController: _tabController,
                     nameController: _nameController,
                     roomCodeController: _roomCodeController,
                     onCreate: () => _createRoom(context),
                     onJoin: () => _joinRoom(context),
                   ),
-                OnlineSessionLoading() => const Center(
-                    child: CircularProgressIndicator(),
+                OnlineSessionLoading() => _RoomEntryView(
+                    tabController: _tabController,
+                    nameController: _nameController,
+                    roomCodeController: _roomCodeController,
+                    isLoading: true,
+                    onCreate: () => _createRoom(context),
+                    onJoin: () => _joinRoom(context),
                   ),
                 OnlineSessionFailure(:final code) => _RoomEntryView(
+                    tabController: _tabController,
                     nameController: _nameController,
                     roomCodeController: _roomCodeController,
                     errorMessage: _onlineErrorTranslationKey(code).tr(),
@@ -126,7 +125,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     }
     context.read<OnlineSessionCubit>().createRoom(
           playerName: name,
-          avatarId: 'avatar_${name.hashCode.abs() % 6 + 1}',
+          avatarId: context.read<SettingsCubit>().state.avatarId,
         );
   }
 
@@ -140,7 +139,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen> {
     context.read<OnlineSessionCubit>().joinRoom(
           roomCode: roomCode,
           playerName: name,
-          avatarId: 'avatar_${name.hashCode.abs() % 6 + 1}',
+          avatarId: context.read<SettingsCubit>().state.avatarId,
         );
   }
 
@@ -229,115 +228,221 @@ class _ReadyRoomView extends StatelessWidget {
 }
 
 class _RoomEntryView extends StatelessWidget {
+  final TabController tabController;
   final TextEditingController nameController;
   final TextEditingController roomCodeController;
   final String? errorMessage;
+  final bool isLoading;
   final VoidCallback onCreate;
   final VoidCallback onJoin;
 
   const _RoomEntryView({
+    required this.tabController,
     required this.nameController,
     required this.roomCodeController,
     required this.onCreate,
     required this.onJoin,
     this.errorMessage,
+    this.isLoading = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(Icons.public,
-                      size: 54, color: AppColors.secondary),
-                  const SizedBox(height: 12),
-                  Text(
-                    'online_real_time_title'.tr(),
-                    textAlign: TextAlign.center,
-                    style: AppTypography.headlineMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'online_real_time_description'.tr(),
-                    textAlign: TextAlign.center,
-                    style: AppTypography.bodyMedium,
-                  ),
-                  if (errorMessage case final message?) ...[
-                    const SizedBox(height: 16),
-                    OnlineActionErrorBanner(message: message),
-                  ],
-                  const SizedBox(height: 22),
-                  TextField(
-                    controller: nameController,
-                    maxLength: 24,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: 'online_player_name'.tr(),
-                      hintText: 'online_player_name_hint'.tr(),
-                      prefixIcon: const Icon(Icons.person_outline),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: onCreate,
-                          icon: const Icon(Icons.add),
-                          label: Text('online_create'.tr()),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    child: Row(
-                      children: [
-                        const Expanded(child: Divider()),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('online_or_join'.tr()),
-                        ),
-                        const Expanded(child: Divider()),
-                      ],
-                    ),
-                  ),
-                  TextField(
-                    controller: roomCodeController,
-                    maxLength: 6,
-                    textCapitalization: TextCapitalization.characters,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => onJoin(),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
-                      _UpperCaseTextFormatter(),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: 'online_room_code'.tr(),
-                      hintText: 'online_room_code_hint'.tr(),
-                      prefixIcon: const Icon(Icons.key),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: onJoin,
-                    icon: const Icon(Icons.login),
-                    label: Text('online_join'.tr()),
-                  ),
-                ],
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                AppStrings.lobbyOnlineGame,
+                style: AppTypography.headlineMedium,
+              ),
+            ],
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: TabBar(
+            controller: tabController,
+            indicator: BoxDecoration(
+              gradient: AppColors.goldGradient,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            labelColor: AppColors.textDark,
+            unselectedLabelColor: AppColors.textSecondary,
+            labelStyle: AppTypography.labelLarge,
+            dividerHeight: 0,
+            tabs: [
+              Tab(text: AppStrings.lobbyCreateRoom),
+              Tab(text: AppStrings.lobbyJoinRoom),
+            ],
+          ),
+        ),
+        if (errorMessage case final message?)
+          OnlineActionErrorBanner(message: message),
+        Expanded(
+          child: TabBarView(
+            controller: tabController,
+            children: [
+              _buildCreateTab(context),
+              _buildJoinTab(context),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCreateTab(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const SizedBox(height: 32),
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.secondary.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.add_circle_outline,
+              size: 60,
+              color: AppColors.secondary,
+            ),
+          ),
+          const SizedBox(height: 32),
+          Text(
+            AppStrings.lobbyCreateNewRoom,
+            style: AppTypography.headlineMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            AppStrings.lobbyHostOnline,
+            style: AppTypography.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          _buildNameField(context),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isLoading ? null : onCreate,
+              icon: isLoading
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.play_arrow),
+              label: Text(
+                isLoading
+                    ? AppStrings.lobbyCreating
+                    : AppStrings.lobbyCreateRoomBtn,
               ),
             ),
           ),
-        ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildJoinTab(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          _buildNameField(context),
+          const SizedBox(height: 24),
+          Container(
+            width: 100,
+            height: 100,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surface,
+            ),
+            child: const Icon(
+              Icons.login,
+              size: 50,
+              color: AppColors.secondary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            AppStrings.lobbyEnterRoomCode,
+            style: AppTypography.titleMedium,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: roomCodeController,
+            decoration: InputDecoration(
+              labelText: AppStrings.lobbyRoomCode,
+              prefixIcon: const Icon(Icons.vpn_key),
+              hintText: 'online_room_code_hint'.tr(),
+            ),
+            textCapitalization: TextCapitalization.characters,
+            textInputAction: TextInputAction.done,
+            onSubmitted: isLoading ? null : (_) => onJoin(),
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            style: AppTypography.headlineMedium.copyWith(letterSpacing: 4),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
+              _UpperCaseTextFormatter(),
+            ],
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isLoading ? null : onJoin,
+              icon: isLoading
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.login),
+              label: Text(
+                isLoading
+                    ? AppStrings.lobbyJoining
+                    : AppStrings.lobbyJoinRoomBtn,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNameField(BuildContext context) {
+    return TextField(
+      controller: nameController,
+      maxLength: 24,
+      textInputAction: TextInputAction.next,
+      decoration: InputDecoration(
+        labelText: AppStrings.lobbyYourName,
+        prefixIcon: const Icon(Icons.person),
+      ),
+      onChanged: context.read<SettingsCubit>().setPlayerName,
     );
   }
 }
