@@ -735,29 +735,22 @@ class _GameStatusBar extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-          child: Row(
-            children: [
-              _Badge(
-                text: 'online_round_number'.tr(
-                  namedArgs: {'number': lobby.roundNumber.toString()},
-                ),
-              ),
-              const Spacer(),
-              Text(
-                lobby.isPausedForDisconnectedPlayer
-                    ? 'online_game_paused'.tr()
+          child: Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Text(
+              lobby.isPausedForDisconnectedPlayer
+                  ? 'online_game_paused'.tr()
+                  : lobby.canDraw
+                      ? 'online_your_turn'.tr()
+                      : 'online_waiting_turn'.tr(),
+              style: AppTypography.titleMedium.copyWith(
+                color: lobby.isPausedForDisconnectedPlayer
+                    ? AppColors.warning
                     : lobby.canDraw
-                        ? 'online_your_turn'.tr()
-                        : 'online_waiting_turn'.tr(),
-                style: AppTypography.titleMedium.copyWith(
-                  color: lobby.isPausedForDisconnectedPlayer
-                      ? AppColors.warning
-                      : lobby.canDraw
-                          ? AppColors.secondaryLight
-                          : AppColors.textSecondary,
-                ),
+                        ? AppColors.secondaryLight
+                        : AppColors.textSecondary,
               ),
-            ],
+            ),
           ),
         ),
         OnlineActionBanner(lobby: lobby),
