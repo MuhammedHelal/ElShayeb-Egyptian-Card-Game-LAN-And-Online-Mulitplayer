@@ -179,7 +179,7 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
     if (current is! OnlineSessionReady ||
         current.isActionInFlight ||
         current.connectionStatus != OnlineServerConnectionStatus.connected ||
-        !current.value.isMyTurn) {
+        !current.value.canDraw) {
       return;
     }
     final targetUserId = current.value.drawFromUserId;

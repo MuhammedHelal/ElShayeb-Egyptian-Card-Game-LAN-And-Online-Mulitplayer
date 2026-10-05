@@ -365,7 +365,25 @@ class _DrawArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final target = lobby.drawFromPlayer;
-    if (!lobby.isMyTurn || target == null) {
+    if (lobby.isPausedForDisconnectedPlayer) {
+      return Container(
+        constraints: const BoxConstraints(maxWidth: 260),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.warning),
+        ),
+        child: Text(
+          'online_waiting_reconnect'.tr(namedArgs: {
+            'name': lobby.disconnectedPlayer?.name ?? 'online_player'.tr(),
+          }),
+          textAlign: TextAlign.center,
+          style: AppTypography.titleMedium,
+        ),
+      );
+    }
+    if (!lobby.canDraw || target == null) {
       return Container(
         constraints: const BoxConstraints(maxWidth: 240),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -726,13 +744,17 @@ class _GameStatusBar extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                lobby.isMyTurn
-                    ? 'online_your_turn'.tr()
-                    : 'online_waiting_turn'.tr(),
+                lobby.isPausedForDisconnectedPlayer
+                    ? 'online_game_paused'.tr()
+                    : lobby.canDraw
+                        ? 'online_your_turn'.tr()
+                        : 'online_waiting_turn'.tr(),
                 style: AppTypography.titleMedium.copyWith(
-                  color: lobby.isMyTurn
-                      ? AppColors.secondaryLight
-                      : AppColors.textSecondary,
+                  color: lobby.isPausedForDisconnectedPlayer
+                      ? AppColors.warning
+                      : lobby.canDraw
+                          ? AppColors.secondaryLight
+                          : AppColors.textSecondary,
                 ),
               ),
             ],

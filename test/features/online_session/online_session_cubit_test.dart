@@ -168,6 +168,34 @@ void main() {
 
     expect((cubit.state as OnlineSessionReady).value.stateVersion, 3);
   });
+
+  test('does not draw from a disconnected player in a paused game', () async {
+    repository.addUpdate(const OnlineLobbyUpdated(
+      _FakeOnlineSessionRepository.pausedPlayingLobby,
+    ));
+    await Future<void>.delayed(Duration.zero);
+
+    await cubit.drawCard(0);
+
+    expect(repository.drawCardCallCount, 0);
+  });
+
+  test('continues with a connected target when a third player disconnects',
+      () async {
+    repository.addUpdate(const OnlineLobbyUpdated(
+      _FakeOnlineSessionRepository.continuingPlayingLobby,
+    ));
+    await Future<void>.delayed(Duration.zero);
+
+    final lobby = (cubit.state as OnlineSessionReady).value;
+    expect(lobby.isPausedForDisconnectedPlayer, isFalse);
+    expect(lobby.canDraw, isTrue);
+
+    await cubit.drawCard(0);
+
+    expect(repository.drawCardCallCount, 1);
+    expect(repository.lastDrawTargetUserId, 'user-3');
+  });
 }
 
 class _FakeOnlineSessionRepository implements OnlineSessionRepository {
@@ -281,6 +309,100 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
     ],
   );
 
+  static const pausedPlayingLobby = OnlineLobby(
+    roomCode: 'ABC123',
+    stateVersion: 4,
+    localUserId: 'user-1',
+    phase: OnlineRoomPhase.playing,
+    canStart: false,
+    canStartNewRound: false,
+    currentPlayerUserId: 'user-1',
+    drawFromUserId: null,
+    roundNumber: 1,
+    lastAction: null,
+    players: [
+      OnlineLobbyPlayer(
+        userId: 'user-1',
+        name: 'Ashraf',
+        avatarId: 'default',
+        isConnected: true,
+        cardCount: 1,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+        hand: [
+          OnlinePlayingCard(
+            id: 'hearts_5',
+            suit: OnlineCardSuit.hearts,
+            rank: 5,
+          ),
+        ],
+      ),
+      OnlineLobbyPlayer(
+        userId: 'user-2',
+        name: 'Guest',
+        avatarId: 'default',
+        isConnected: false,
+        cardCount: 2,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+      ),
+    ],
+  );
+
+  static const continuingPlayingLobby = OnlineLobby(
+    roomCode: 'ABC123',
+    stateVersion: 5,
+    localUserId: 'user-1',
+    phase: OnlineRoomPhase.playing,
+    canStart: false,
+    canStartNewRound: false,
+    currentPlayerUserId: 'user-1',
+    drawFromUserId: 'user-3',
+    roundNumber: 1,
+    lastAction: null,
+    players: [
+      OnlineLobbyPlayer(
+        userId: 'user-1',
+        name: 'Ashraf',
+        avatarId: 'default',
+        isConnected: true,
+        cardCount: 1,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+        hand: [
+          OnlinePlayingCard(
+            id: 'hearts_5',
+            suit: OnlineCardSuit.hearts,
+            rank: 5,
+          ),
+        ],
+      ),
+      OnlineLobbyPlayer(
+        userId: 'user-2',
+        name: 'Disconnected',
+        avatarId: 'default',
+        isConnected: false,
+        cardCount: 2,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+      ),
+      OnlineLobbyPlayer(
+        userId: 'user-3',
+        name: 'Connected target',
+        avatarId: 'default',
+        isConnected: true,
+        cardCount: 2,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+      ),
+    ],
+  );
+
   final _updates = StreamController<OnlineSessionUpdate>.broadcast(sync: true);
   int? lastExpectedStateVersion;
   int startGameCallCount = 0;
@@ -289,6 +411,8 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
   AppFailure? restoreFailure;
   int restoreCallCount = 0;
   int reconnectCallCount = 0;
+  int drawCardCallCount = 0;
+  String? lastDrawTargetUserId;
 
   void addUpdate(OnlineSessionUpdate update) => _updates.add(update);
 
@@ -341,8 +465,11 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
     required String targetUserId,
     required int cardIndex,
     required int expectedStateVersion,
-  }) async =>
-      const Right(playingLobby);
+  }) async {
+    drawCardCallCount += 1;
+    lastDrawTargetUserId = targetUserId;
+    return const Right(playingLobby);
+  }
 
   @override
   Future<FailureOrSuccess<OnlineLobby>> shuffleHand(

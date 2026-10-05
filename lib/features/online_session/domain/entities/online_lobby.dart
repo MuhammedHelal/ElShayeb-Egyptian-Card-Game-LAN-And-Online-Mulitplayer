@@ -133,6 +133,24 @@ class OnlineLobby extends Equatable {
 
   bool get isMyTurn => currentPlayerUserId == localUserId;
 
+  bool get isPausedForDisconnectedPlayer {
+    if (phase != OnlineRoomPhase.playing || disconnectedPlayer == null) {
+      return false;
+    }
+    return currentPlayer?.isConnected != true ||
+        drawFromPlayer?.isConnected != true;
+  }
+
+  bool get canDraw =>
+      isMyTurn && !isPausedForDisconnectedPlayer && drawFromPlayer != null;
+
+  OnlineLobbyPlayer? get disconnectedPlayer {
+    for (final player in players) {
+      if (!player.isConnected) return player;
+    }
+    return null;
+  }
+
   OnlineLobbyPlayer? _playerById(String userId) {
     for (final player in players) {
       if (player.userId == userId) return player;

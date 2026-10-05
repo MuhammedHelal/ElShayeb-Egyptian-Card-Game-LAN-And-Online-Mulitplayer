@@ -64,6 +64,7 @@ class CloudflareOnlineSessionDataSource
   bool _intentionalClose = false;
   bool _socketAvailable = false;
   bool _canAutoReconnect = false;
+  Future<OnlineLobbyModel>? _activeConnection;
   String? _roomCode;
   String? _playerName;
   String? _avatarId;
@@ -104,9 +105,9 @@ class CloudflareOnlineSessionDataSource
   }
 
   Future<String> _allocateRoomCode() async {
-    final response = await _httpClient.post(
-      Uri.parse('${OnlineServerConstants.httpsBaseUrl}/room-code'),
-    );
+    final response = await _httpClient
+        .post(Uri.parse('${OnlineServerConstants.httpsBaseUrl}/room-code'))
+        .timeout(OnlineServerConstants.commandTimeout);
     if (response.statusCode != 201) {
       throw const OnlineProtocolException(
         'room_code_failed',
@@ -159,6 +160,7 @@ class CloudflareOnlineSessionDataSource
       playerName: playerName,
       avatarId: avatarId,
       commandType: 'resume_room',
+      reconnecting: true,
     );
   }
 
@@ -169,6 +171,30 @@ class CloudflareOnlineSessionDataSource
     required String commandType,
     bool reconnecting = false,
     bool resetReconnectAttempts = true,
+  }) {
+    final active = _activeConnection;
+    if (active != null) return active;
+    final operation = _performConnectAndEnter(
+      roomCode: roomCode,
+      playerName: playerName,
+      avatarId: avatarId,
+      commandType: commandType,
+      reconnecting: reconnecting,
+      resetReconnectAttempts: resetReconnectAttempts,
+    );
+    _activeConnection = operation;
+    return operation.whenComplete(() {
+      if (identical(_activeConnection, operation)) _activeConnection = null;
+    });
+  }
+
+  Future<OnlineLobbyModel> _performConnectAndEnter({
+    required String roomCode,
+    required String playerName,
+    required String avatarId,
+    required String commandType,
+    required bool reconnecting,
+    required bool resetReconnectAttempts,
   }) async {
     if (resetReconnectAttempts) {
       _reconnectAttempt = 0;
@@ -188,10 +214,19 @@ class CloudflareOnlineSessionDataSource
           : OnlineConnectionStatusModel.connecting,
     );
 
-    final session = await _validSession();
     final generation = ++_connectionGeneration;
-    await _socketSubscription?.cancel();
-    await _channel?.sink.close();
+    _failPending(const OnlineProtocolException(
+      'socket_replaced',
+      'The previous connection was replaced.',
+    ));
+    await _disposeSocket();
+    final session = await _validSession().timeout(
+      OnlineServerConstants.commandTimeout,
+      onTimeout: () => throw const OnlineProtocolException(
+        'connection_timeout',
+        'The player session could not be restored in time.',
+      ),
+    );
     _connectionReady = Completer<void>();
     _channel = WebSocketChannel.connect(
       Uri.parse(
@@ -256,9 +291,7 @@ class CloudflareOnlineSessionDataSource
     } on Exception {
       if (generation == _connectionGeneration) {
         _connectionGeneration += 1;
-        await _socketSubscription?.cancel();
-        await _channel?.sink.close();
-        _channel = null;
+        await _disposeSocket();
         _socketAvailable = false;
         _stopHeartbeat();
       }
@@ -445,7 +478,10 @@ class CloudflareOnlineSessionDataSource
       _socketAvailable = false;
       _stopHeartbeat();
       _emitConnection(OnlineConnectionStatusModel.reconnecting);
-      await _channel?.sink.close();
+      final closing = _channel?.sink.close();
+      if (closing != null) {
+        unawaited(closing.then<void>((_) {}, onError: (_, __) {}));
+      }
       _scheduleReconnect();
     } finally {
       _heartbeatInFlight = false;
@@ -475,6 +511,31 @@ class CloudflareOnlineSessionDataSource
     if (ready != null && !ready.isCompleted) ready.completeError(error);
   }
 
+  Future<void> _disposeSocket() async {
+    final subscription = _socketSubscription;
+    final channel = _channel;
+    _socketSubscription = null;
+    _channel = null;
+    if (subscription != null) {
+      try {
+        await subscription
+            .cancel()
+            .timeout(OnlineServerConstants.socketCleanupTimeout);
+      } on Exception {
+        // The generation guard makes callbacks from this stale socket harmless.
+      }
+    }
+    if (channel != null) {
+      try {
+        await channel.sink
+            .close()
+            .timeout(OnlineServerConstants.socketCleanupTimeout);
+      } on Exception {
+        // A stale operating-system socket must not block a fresh connection.
+      }
+    }
+  }
+
   bool _isTerminalResumeError(String code) {
     return code == 'room_not_found' ||
         code == 'player_not_found' ||
@@ -500,9 +561,7 @@ class CloudflareOnlineSessionDataSource
       _playerName = null;
       _avatarId = null;
       _connectionGeneration += 1;
-      await _socketSubscription?.cancel();
-      await _channel?.sink.close();
-      _channel = null;
+      await _disposeSocket();
       _socketAvailable = false;
       _canAutoReconnect = false;
       _reconnectAttempt = 0;

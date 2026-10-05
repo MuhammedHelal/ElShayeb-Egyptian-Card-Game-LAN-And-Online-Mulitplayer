@@ -189,6 +189,8 @@
   "online_you_drew_pair": "You drew {card} and made a pair!",
   "online_you_drew_card": "You drew {card}",
   "online_reconnecting_notice": "Connection interrupted. Your seat is safe while we reconnect.",
+  "online_game_paused": "Game paused",
+  "online_waiting_reconnect": "Waiting for {name} to reconnect.",
   "online_tap_to_reconnect": "Tap to reconnect to the room",
   "online_room_connection_ok": "Your connection to this room is active",
   "online_error_connection": "We couldn't connect to the room. Check your internet and try again.",

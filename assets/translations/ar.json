@@ -189,6 +189,8 @@
     "online_you_drew_pair": "سحبت {card} وعملت ماتش!",
     "online_you_drew_card": "سحبت {card}",
     "online_reconnecting_notice": "الاتصال انقطع. مكانك محفوظ أثناء إعادة الاتصال.",
+    "online_game_paused": "اللعبة متوقفة مؤقتاً",
+    "online_waiting_reconnect": "في انتظار عودة {name} للاتصال.",
     "online_tap_to_reconnect": "اضغط لإعادة الاتصال بالغرفة",
     "online_room_connection_ok": "اتصالك بهذه الغرفة يعمل",
     "online_error_connection": "تعذر الاتصال بالغرفة. تحقق من الإنترنت وحاول مرة أخرى.",

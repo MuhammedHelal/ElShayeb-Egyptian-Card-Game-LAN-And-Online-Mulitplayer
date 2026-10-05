@@ -6,4 +6,5 @@ abstract class OnlineServerConstants {
   static const int protocolVersion = 2;
   static const Duration commandTimeout = Duration(seconds: 12);
   static const Duration heartbeatInterval = Duration(seconds: 20);
+  static const Duration socketCleanupTimeout = Duration(seconds: 2);
 }
