@@ -217,8 +217,7 @@ class _HomeScreenState extends State<HomeScreen>
                               onTap: () => _startGame(context, GameMode.online),
                               isSecondary: true,
                             ),
-                            if (AppConsts.durableObjectOnlineEnabled &&
-                                AppConsts.onlineDiagnosticsEnabled) ...[
+                            if (AppConsts.onlineDiagnosticsEnabled) ...[
                               const SizedBox(height: 8),
                               _GameModeButton(
                                 icon: Icons.bug_report_outlined,
@@ -259,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _startGame(BuildContext context, GameMode mode) {
-    if (mode == GameMode.online && AppConsts.durableObjectOnlineEnabled) {
+    if (mode == GameMode.online) {
       Navigator.pushNamed(context, '/online-game');
       return;
     }

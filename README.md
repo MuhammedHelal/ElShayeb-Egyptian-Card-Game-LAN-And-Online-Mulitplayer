@@ -121,24 +121,23 @@ flutter pub get
 flutter run
 ```
 
-### Cloudflare authoritative online test
+### Cloudflare authoritative online mode
 
-The server-authoritative online path is behind a feature flag while it is
-validated on real devices. Run the app with:
+The **Online** button always opens the Cloudflare Durable Objects room. Run the
+app normally:
 
 ```bash
-flutter run --dart-define=DURABLE_OBJECT_ONLINE=true
+flutter run
 ```
 
-The **Online** button opens the Cloudflare Durable Objects room. Create a room
-on one device, join its six-character code from another, then play a complete
-server-owned round. The server owns the deck, private hands, turns, draw
-validation, pair removal, scoring, and reconnect state.
+Create a room on one device, join its six-character code from another, then
+play a complete server-owned round. The server owns the deck, private hands,
+turns, draw validation, pair removal, scoring, and reconnect state.
 
-For the separate developer diagnostics screen, enable both flags:
+For the separate developer diagnostics screen, enable its flag:
 
 ```bash
-flutter run --dart-define=DURABLE_OBJECT_ONLINE=true --dart-define=ONLINE_DIAGNOSTICS=true
+flutter run --dart-define=ONLINE_DIAGNOSTICS=true
 ```
 
 The diagnostics flag adds a second Home entry for inspecting raw room snapshots
