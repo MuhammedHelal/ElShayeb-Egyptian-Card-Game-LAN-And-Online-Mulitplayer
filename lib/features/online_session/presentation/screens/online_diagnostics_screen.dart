@@ -270,9 +270,8 @@ class _ReadyDiagnostics extends StatelessWidget {
           children: [
             if (lobby.phase == OnlineRoomPhase.lobby)
               ElevatedButton(
-                onPressed: lobby.canStart && !isUnavailable
-                    ? cubit.startGame
-                    : null,
+                onPressed:
+                    lobby.canStart && !isUnavailable ? cubit.startGame : null,
                 child: const Text('start_game'),
               ),
             if (lobby.phase == OnlineRoomPhase.playing) ...[
@@ -287,7 +286,10 @@ class _ReadyDiagnostics extends StatelessWidget {
                       OutlinedButton(
                         onPressed: isUnavailable
                             ? null
-                            : () => cubit.drawCard(index),
+                            : () {
+                                cubit.initiateDrawFrom(drawTarget.userId);
+                                cubit.drawCard(index);
+                              },
                         child: Text('draw_card[$index]'),
                       ),
                   ],

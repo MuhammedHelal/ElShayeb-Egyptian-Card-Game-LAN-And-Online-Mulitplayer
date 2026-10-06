@@ -23,6 +23,8 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
   bool _restoreAttempted = false;
   bool _restoreFailed = false;
   bool _reconnectInFlight = false;
+  int _nextDrawOutcomeId = 0;
+  int _nextEffectId = 0;
 
   OnlineSessionCubit({
     required ObserveOnlineSessionUseCase observeOnlineSession,
@@ -81,21 +83,36 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
     final current = state;
     if (current is! OnlineSessionReady) return;
     _reconnectInFlight = true;
-    emit(OnlineSessionReady(
-      current.value,
+    emit(current.copyWith(
       status: OnlineServerConnectionStatus.reconnecting,
+      clearDraw: true,
     ));
     final result = await _reconnectOnlineSession();
     _reconnectInFlight = false;
     if (isClosed) return;
     result.fold(
-      (failure) => emit(OnlineSessionReady(
-        current.value,
-        status: OnlineServerConnectionStatus.disconnected,
-        actionErrorMessage: failure.message,
-        actionErrorCode: failure.code,
-      )),
-      (lobby) => emit(OnlineSessionReady(lobby)),
+      (failure) {
+        final latest = _latestReady(current);
+        emit(latest.copyWith(
+          status: OnlineServerConnectionStatus.disconnected,
+          actionErrorMessage: failure.message,
+          actionErrorCode: failure.code,
+          clearDraw: true,
+        ));
+      },
+      (lobby) {
+        final latest = _latestReady(current);
+        final newestLobby = latest.value.stateVersion > lobby.stateVersion
+            ? latest.value
+            : lobby;
+        emit(latest.copyWith(
+          value: newestLobby,
+          status: OnlineServerConnectionStatus.connected,
+          isActionInFlight: false,
+          clearActionError: true,
+          clearDraw: true,
+        ));
+      },
     );
   }
 
@@ -174,24 +191,77 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
     );
   }
 
+  void initiateDrawFrom(String targetUserId) {
+    final current = state;
+    if (current is! OnlineSessionReady ||
+        current.isActionInFlight ||
+        current.connectionStatus != OnlineServerConnectionStatus.connected ||
+        current.drawPhase != OnlineDrawPhase.idle ||
+        !current.value.canDraw ||
+        current.value.drawFromUserId != targetUserId ||
+        current.value.drawFromPlayer?.cardCount == 0) {
+      return;
+    }
+    emit(current.copyWith(
+      drawPhase: OnlineDrawPhase.selectingCard,
+      selectedDrawTargetUserId: targetUserId,
+      clearActionError: true,
+    ));
+  }
+
+  void cancelDrawSelection() {
+    final current = state;
+    if (current is! OnlineSessionReady || current.isActionInFlight) return;
+    emit(current.copyWith(clearDraw: true));
+  }
+
   Future<void> drawCard(int cardIndex) async {
     final current = state;
     if (current is! OnlineSessionReady ||
         current.isActionInFlight ||
         current.connectionStatus != OnlineServerConnectionStatus.connected ||
+        current.drawPhase != OnlineDrawPhase.selectingCard ||
         !current.value.canDraw) {
       return;
     }
-    final targetUserId = current.value.drawFromUserId;
-    if (targetUserId == null) return;
-    _markActionInFlight(current);
-    _handleGameResult(
-      await _drawOnlineCard(
+    final targetUserId = current.selectedDrawTargetUserId;
+    final target = current.value.drawFromPlayer;
+    if (targetUserId == null ||
+        current.value.drawFromUserId != targetUserId ||
+        target?.userId != targetUserId ||
+        cardIndex < 0 ||
+        cardIndex >= target!.cardCount) {
+      emit(current.copyWith(clearDraw: true));
+      return;
+    }
+
+    emit(current.copyWith(
+      isActionInFlight: true,
+      drawPhase: OnlineDrawPhase.completing,
+      clearActionError: true,
+    ));
+    final result = await _drawOnlineCard(
+      targetUserId: targetUserId,
+      cardIndex: cardIndex,
+      expectedStateVersion: current.value.stateVersion,
+    );
+    if (isClosed) return;
+    await result.fold(
+      (failure) async {
+        final latest = _latestReady(current);
+        emit(latest.copyWith(
+          isActionInFlight: false,
+          actionErrorMessage: failure.message,
+          actionErrorCode: failure.code,
+          clearDraw: true,
+        ));
+      },
+      (room) async => _handleConfirmedDraw(
+        responseRoom: room,
+        previous: current,
         targetUserId: targetUserId,
         cardIndex: cardIndex,
-        expectedStateVersion: current.value.stateVersion,
       ),
-      current,
     );
   }
 
@@ -200,13 +270,15 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
     if (current is! OnlineSessionReady ||
         current.isActionInFlight ||
         current.connectionStatus != OnlineServerConnectionStatus.connected ||
-        current.value.phase != OnlineRoomPhase.playing) {
+        current.value.phase != OnlineRoomPhase.playing ||
+        current.drawPhase != OnlineDrawPhase.idle) {
       return;
     }
     _markActionInFlight(current);
     _handleGameResult(
       await _shuffleOnlineHand(current.value.stateVersion),
       current,
+      successEffect: OnlineSessionEffectType.handShuffled,
     );
   }
 
@@ -226,57 +298,167 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
   }
 
   void _markActionInFlight(OnlineSessionReady current) {
-    emit(OnlineSessionReady(
-      current.value,
-      status: current.connectionStatus,
+    emit(current.copyWith(
       isActionInFlight: true,
+      clearActionError: true,
     ));
   }
 
   void _handleGameResult(
     FailureOrSuccess<OnlineLobby> result,
-    OnlineSessionReady previous,
-  ) {
+    OnlineSessionReady previous, {
+    OnlineSessionEffectType? successEffect,
+  }) {
     if (isClosed) return;
     result.fold(
       (failure) {
-        final latest = state is OnlineSessionReady
-            ? state as OnlineSessionReady
-            : previous;
-        emit(OnlineSessionReady(
-          latest.value,
-          status: latest.connectionStatus,
+        final latest = _latestReady(previous);
+        emit(latest.copyWith(
+          isActionInFlight: false,
           actionErrorMessage: failure.message,
           actionErrorCode: failure.code,
         ));
       },
       (room) {
-        final latest = state is OnlineSessionReady
-            ? state as OnlineSessionReady
-            : previous;
+        final latest = _latestReady(previous);
         final newestRoom =
             latest.value.stateVersion > room.stateVersion ? latest.value : room;
-        emit(OnlineSessionReady(
-          newestRoom,
-          status: latest.connectionStatus,
+        emit(latest.copyWith(
+          value: newestRoom,
+          isActionInFlight: false,
+          clearActionError: true,
+          effect: successEffect == null ? null : _effect(successEffect),
         ));
       },
     );
+  }
+
+  Future<void> _handleConfirmedDraw({
+    required OnlineLobby responseRoom,
+    required OnlineSessionReady previous,
+    required String targetUserId,
+    required int cardIndex,
+  }) async {
+    final action = responseRoom.lastAction;
+    if (action?.type != OnlineGameActionType.cardDrawn ||
+        action?.actorUserId != previous.value.localUserId ||
+        action?.targetUserId != targetUserId ||
+        action?.drawnCard == null) {
+      final latest = _latestReady(previous);
+      emit(latest.copyWith(
+        isActionInFlight: false,
+        actionErrorMessage: 'The online server returned an invalid draw.',
+        actionErrorCode: 'invalid_server_response',
+        clearDraw: true,
+      ));
+      return;
+    }
+
+    OnlinePlayingCard? matchedCard;
+    if (action!.madePair == true) {
+      final previousHand = previous.value.localPlayer?.hand;
+      if (previousHand != null) {
+        for (final card in previousHand) {
+          if (card.rank == action.drawnCard!.rank) {
+            matchedCard = card;
+            break;
+          }
+        }
+      }
+    }
+
+    final latest = _latestReady(previous);
+    final newestRoom = latest.value.stateVersion > responseRoom.stateVersion
+        ? latest.value
+        : responseRoom;
+    final outcome = OnlineDrawOutcome(
+      id: ++_nextDrawOutcomeId,
+      targetUserId: targetUserId,
+      selectedCardIndex: cardIndex,
+      drawnCard: action.drawnCard!,
+      matchedCard: matchedCard,
+    );
+    emit(latest.copyWith(
+      value: newestRoom,
+      isActionInFlight: false,
+      drawPhase: OnlineDrawPhase.revealingCard,
+      selectedDrawTargetUserId: targetUserId,
+      drawOutcome: outcome,
+      effect: _effect(OnlineSessionEffectType.cardDrawn),
+      clearActionError: true,
+    ));
+
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    if (isClosed) return;
+    final afterReveal = state;
+    if (afterReveal is! OnlineSessionReady ||
+        afterReveal.drawOutcome?.id != outcome.id ||
+        afterReveal.drawPhase != OnlineDrawPhase.revealingCard) {
+      return;
+    }
+    if (!outcome.madeMatch) {
+      emit(afterReveal.copyWith(clearDraw: true));
+      return;
+    }
+
+    emit(afterReveal.copyWith(
+      drawPhase: OnlineDrawPhase.showingMatch,
+      effect: _effect(OnlineSessionEffectType.matchFound),
+    ));
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    if (isClosed) return;
+    final afterMatch = state;
+    if (afterMatch is OnlineSessionReady &&
+        afterMatch.drawOutcome?.id == outcome.id &&
+        afterMatch.drawPhase == OnlineDrawPhase.showingMatch) {
+      emit(afterMatch.copyWith(clearDraw: true));
+    }
+  }
+
+  OnlineSessionReady _latestReady(OnlineSessionReady fallback) {
+    final current = state;
+    return current is OnlineSessionReady ? current : fallback;
+  }
+
+  OnlineSessionEffect _effect(OnlineSessionEffectType type) {
+    return OnlineSessionEffect(id: ++_nextEffectId, type: type);
+  }
+
+  OnlineSessionReady _reconcileDrawSelection(OnlineSessionReady current) {
+    if (current.drawPhase != OnlineDrawPhase.selectingCard) return current;
+    final isSelectionValid =
+        current.connectionStatus == OnlineServerConnectionStatus.connected &&
+            current.value.phase == OnlineRoomPhase.playing &&
+            current.value.canDraw &&
+            current.value.drawFromUserId == current.selectedDrawTargetUserId;
+    return isSelectionValid ? current : current.copyWith(clearDraw: true);
   }
 
   void _handleUpdate(OnlineSessionUpdate update) {
     if (isClosed) return;
     switch (update) {
       case OnlineLobbyUpdated(:final lobby):
-        emit(OnlineSessionReady(lobby));
+        final currentState = state;
+        if (currentState is OnlineSessionReady) {
+          final newestLobby =
+              currentState.value.stateVersion > lobby.stateVersion
+                  ? currentState.value
+                  : lobby;
+          emit(_reconcileDrawSelection(
+            currentState.copyWith(value: newestLobby),
+          ));
+        } else {
+          emit(OnlineSessionReady(lobby));
+        }
       case OnlineConnectionUpdated(:final status):
         final currentState = state;
         if (currentState is OnlineSessionReady) {
-          emit(OnlineSessionReady(
-            currentState.value,
+          final updated = currentState.copyWith(
             status: status,
-            isActionInFlight: currentState.isActionInFlight,
-          ));
+            clearDraw: status != OnlineServerConnectionStatus.connected &&
+                !currentState.isActionInFlight,
+          );
+          emit(_reconcileDrawSelection(updated));
         } else if (status == OnlineServerConnectionStatus.disconnected) {
           emit(const OnlineSessionInitial());
         } else {
@@ -285,11 +467,11 @@ class OnlineSessionCubit extends Cubit<OnlineSessionState> {
       case OnlineSessionRejected(:final message, :final code):
         final currentState = state;
         if (currentState is OnlineSessionReady) {
-          emit(OnlineSessionReady(
-            currentState.value,
-            status: currentState.connectionStatus,
+          emit(currentState.copyWith(
+            isActionInFlight: false,
             actionErrorMessage: message,
             actionErrorCode: code,
+            clearDraw: true,
           ));
         } else {
           emit(OnlineSessionFailure(

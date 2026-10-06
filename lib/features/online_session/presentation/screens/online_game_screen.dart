@@ -42,8 +42,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
   OnlineRoomPhase? _lastRoomPhase;
   OnlinePlayerStatus? _lastLocalPlayerStatus;
   int? _lastHandledStateVersion;
-  DrawPhase _drawPhase = DrawPhase.idle;
-  DrawActionInfo? _drawAction;
+  int? _lastHandledEffectId;
   CardStealEventInfo? _pendingCardStealEvent;
   bool _showDealAnimation = false;
   int? _selectedCardIndex;
@@ -120,17 +119,18 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
 
   Widget _buildGame(BuildContext context, OnlineSessionReady session) {
     final lobby = session.value;
-    final isUnavailable = session.isActionInFlight ||
+    final isUnavailable = _showDealAnimation ||
+        session.isActionInFlight ||
         session.connectionStatus != OnlineServerConnectionStatus.connected;
     final canManageLobby = _createdRoom || lobby.canStart;
-    final uiState = _toGameUiState(lobby, isHost: canManageLobby);
+    final uiState = _toGameUiState(session, isHost: canManageLobby);
     final cubit = context.read<OnlineSessionCubit>();
 
     return GameScreenView(
       state: uiState,
       connectionInfo: lobby.roomCode,
       onLeave: cubit.leaveRoom,
-      onShuffle: isUnavailable ? null : () => _shuffleHand(cubit),
+      onShuffle: isUnavailable ? null : cubit.shuffleHand,
       onCardTap: isUnavailable ? null : (index) => _selectHandCard(index),
       content: Stack(
         children: [
@@ -151,18 +151,24 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                   drawFromPlayerId: lobby.canDraw ? lobby.drawFromUserId : null,
                   onPlayerTap: isUnavailable
                       ? null
-                      : (playerId) => _startCardSelection(lobby, playerId),
-                  onDealAnimationComplete: () =>
-                      setState(() => _showDealAnimation = false),
-                  onStealAnimationComplete: () =>
-                      setState(() => _pendingCardStealEvent = null),
-                  onCancelCardSelection: _cancelCardSelection,
-                  onCardSelected: (index) => _selectOnlineCard(lobby, index),
+                      : (playerId) => _startCardSelection(cubit, playerId),
+                  onDealAnimationComplete: () {
+                    if (mounted) {
+                      setState(() => _showDealAnimation = false);
+                    }
+                  },
+                  onStealAnimationComplete: () {
+                    if (mounted) {
+                      setState(() => _pendingCardStealEvent = null);
+                    }
+                  },
+                  onCancelCardSelection: cubit.cancelDrawSelection,
+                  onCardSelected: cubit.drawCard,
                 ),
               OnlineRoomPhase.roundEnd => RoundEndView(
                   state: uiState,
                   onStartNewRound: lobby.canStartNewRound && !isUnavailable
-                      ? () => _startNewRound(cubit)
+                      ? cubit.startNewRound
                       : null,
                 ),
             },
@@ -231,13 +237,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
       _lastRoomPhase = null;
       _lastLocalPlayerStatus = null;
       _lastHandledStateVersion = null;
+      _lastHandledEffectId = null;
       return;
     }
 
     final lobby = state.value;
     final previousPhase = _lastRoomPhase;
     final previousLocalStatus = _lastLocalPlayerStatus;
-    final shouldDeal = _lastRoomPhase == OnlineRoomPhase.lobby &&
+    final shouldDeal = (previousPhase == OnlineRoomPhase.lobby ||
+            previousPhase == OnlineRoomPhase.roundEnd) &&
         lobby.phase == OnlineRoomPhase.playing;
     final shouldFinishRound = previousPhase == OnlineRoomPhase.playing &&
         lobby.phase == OnlineRoomPhase.roundEnd;
@@ -255,6 +263,21 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     _lastRoomPhase = lobby.phase;
     _lastLocalPlayerStatus = localStatus;
     _lastHandledStateVersion = lobby.stateVersion;
+
+    final effect = state.effect;
+    if (effect != null && effect.id != _lastHandledEffectId) {
+      _lastHandledEffectId = effect.id;
+      switch (effect.type) {
+        case OnlineSessionEffectType.cardDrawn:
+          unawaited(widget.audioManager.playSoundEffect(SoundEffect.flip));
+          unawaited(widget.hapticManager.cardDraw());
+        case OnlineSessionEffectType.matchFound:
+          unawaited(widget.audioManager.playSoundEffect(SoundEffect.match));
+          unawaited(widget.hapticManager.matchFound());
+        case OnlineSessionEffectType.handShuffled:
+          unawaited(widget.hapticManager.cardTap());
+      }
+    }
 
     if (shouldDeal) {
       unawaited(widget.audioManager.playSoundEffect(SoundEffect.deal));
@@ -289,84 +312,14 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     }
   }
 
-  void _startCardSelection(OnlineLobby lobby, String playerId) {
-    if (!lobby.canDraw || lobby.drawFromUserId != playerId) return;
-    unawaited(widget.hapticManager.cardTap());
-    setState(() {
-      _drawPhase = DrawPhase.selectingCard;
-      _drawAction = DrawActionInfo(targetPlayerId: playerId);
-    });
-  }
-
-  void _cancelCardSelection() {
-    setState(() {
-      _drawPhase = DrawPhase.idle;
-      _drawAction = null;
-    });
-  }
-
-  Future<void> _selectOnlineCard(OnlineLobby lobby, int cardIndex) async {
-    final target = lobby.drawFromPlayer;
-    if (_drawPhase != DrawPhase.selectingCard ||
-        target == null ||
-        cardIndex < 0 ||
-        cardIndex >= target.cardCount) {
-      return;
+  void _startCardSelection(OnlineSessionCubit cubit, String playerId) {
+    cubit.initiateDrawFrom(playerId);
+    final current = cubit.state;
+    if (current is OnlineSessionReady &&
+        current.drawPhase == OnlineDrawPhase.selectingCard &&
+        current.selectedDrawTargetUserId == playerId) {
+      unawaited(widget.hapticManager.cardTap());
     }
-
-    final previousHand = lobby.localPlayer?.hand ?? const <OnlinePlayingCard>[];
-    setState(() => _drawPhase = DrawPhase.completing);
-    await context.read<OnlineSessionCubit>().drawCard(cardIndex);
-    if (!mounted) return;
-
-    final latestState = context.read<OnlineSessionCubit>().state;
-    final latestLobby =
-        latestState is OnlineSessionReady ? latestState.value : null;
-    final action = latestLobby?.lastAction;
-    if (latestLobby == null ||
-        latestLobby.stateVersion <= lobby.stateVersion ||
-        action?.type != OnlineGameActionType.cardDrawn ||
-        action?.actorUserId != lobby.localUserId ||
-        action?.targetUserId != target.userId ||
-        action?.drawnCard == null) {
-      _cancelCardSelection();
-      return;
-    }
-
-    final drawnCard = _toPlayingCard(action!.drawnCard!);
-    unawaited(widget.audioManager.playSoundEffect(SoundEffect.flip));
-    unawaited(widget.hapticManager.cardDraw());
-    PlayingCard? matchedCard;
-    if (action.madePair == true) {
-      for (final card in previousHand) {
-        if (card.rank == action.drawnCard!.rank) {
-          matchedCard = _toPlayingCard(card);
-          break;
-        }
-      }
-    }
-
-    setState(() {
-      _drawPhase = DrawPhase.revealingCard;
-      _drawAction = DrawActionInfo(
-        targetPlayerId: target.userId,
-        selectedCardIndex: cardIndex,
-        drawnCard: drawnCard,
-        matchedCard: matchedCard,
-        madeMatch: matchedCard != null,
-      );
-    });
-    await Future<void>.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
-
-    if (matchedCard != null) {
-      setState(() => _drawPhase = DrawPhase.showingMatch);
-      unawaited(widget.audioManager.playSoundEffect(SoundEffect.match));
-      unawaited(widget.hapticManager.matchFound());
-      await Future<void>.delayed(const Duration(milliseconds: 1500));
-      if (!mounted) return;
-    }
-    _cancelCardSelection();
   }
 
   void _selectHandCard(int index) {
@@ -374,19 +327,11 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     unawaited(widget.hapticManager.cardTap());
   }
 
-  Future<void> _shuffleHand(OnlineSessionCubit cubit) async {
-    await cubit.shuffleHand();
-    if (mounted) unawaited(widget.hapticManager.cardTap());
-  }
-
-  Future<void> _startNewRound(OnlineSessionCubit cubit) async {
-    await cubit.startNewRound();
-    if (mounted) {
-      unawaited(widget.audioManager.playSoundEffect(SoundEffect.deal));
-    }
-  }
-
-  GameUiState _toGameUiState(OnlineLobby lobby, {required bool isHost}) {
+  GameUiState _toGameUiState(
+    OnlineSessionReady session, {
+    required bool isHost,
+  }) {
+    final lobby = session.value;
     final players = lobby.players
         .map((player) => _toPlayer(player, lobby.localUserId, isHost))
         .toList(growable: false);
@@ -406,16 +351,38 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
       roundNumber: lobby.roundNumber,
       hostId: isHost ? lobby.localUserId : '',
     );
+    final drawOutcome = session.drawOutcome;
+    final targetUserId = session.selectedDrawTargetUserId;
+    final drawAction = targetUserId == null
+        ? null
+        : DrawActionInfo(
+            targetPlayerId: targetUserId,
+            selectedCardIndex: drawOutcome?.selectedCardIndex,
+            drawnCard: drawOutcome == null
+                ? null
+                : _toPlayingCard(drawOutcome.drawnCard),
+            matchedCard: drawOutcome?.matchedCard == null
+                ? null
+                : _toPlayingCard(drawOutcome!.matchedCard!),
+            madeMatch: drawOutcome?.madeMatch ?? false,
+          );
     return GameUiState(
       gameState: gameState,
       status: LoadingStatus.success,
       localPlayerId: lobby.localUserId,
       isHost: isHost,
-      isReconnecting: false,
+      isReconnecting:
+          session.connectionStatus == OnlineServerConnectionStatus.reconnecting,
       lastEventMessage: _onlineActionMessage(lobby),
       selectedCardIndex: _selectedCardIndex,
-      drawPhase: _drawPhase,
-      currentDrawAction: _drawAction,
+      drawPhase: switch (session.drawPhase) {
+        OnlineDrawPhase.idle => DrawPhase.idle,
+        OnlineDrawPhase.selectingCard => DrawPhase.selectingCard,
+        OnlineDrawPhase.completing => DrawPhase.completing,
+        OnlineDrawPhase.revealingCard => DrawPhase.revealingCard,
+        OnlineDrawPhase.showingMatch => DrawPhase.showingMatch,
+      },
+      currentDrawAction: drawAction,
       showDealAnimation: _showDealAnimation,
       pendingCardStealEvent: _pendingCardStealEvent,
     );

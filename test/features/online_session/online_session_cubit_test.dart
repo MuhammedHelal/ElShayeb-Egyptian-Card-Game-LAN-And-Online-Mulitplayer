@@ -180,6 +180,71 @@ void main() {
     expect(repository.drawCardCallCount, 0);
   });
 
+  test('cancels card selection when the authoritative target changes',
+      () async {
+    repository.addUpdate(const OnlineLobbyUpdated(
+      _FakeOnlineSessionRepository.playingLobby,
+    ));
+    await Future<void>.delayed(Duration.zero);
+    cubit.initiateDrawFrom('user-2');
+
+    repository.addUpdate(const OnlineLobbyUpdated(
+      _FakeOnlineSessionRepository.continuingPlayingLobby,
+    ));
+    await Future<void>.delayed(Duration.zero);
+
+    final state = cubit.state as OnlineSessionReady;
+    expect(state.drawPhase, OnlineDrawPhase.idle);
+    expect(state.selectedDrawTargetUserId, isNull);
+
+    await cubit.drawCard(0);
+    expect(repository.drawCardCallCount, 0);
+  });
+
+  test('uses the correlated draw response after a newer snapshot arrives',
+      () async {
+    repository.addUpdate(const OnlineLobbyUpdated(
+      _FakeOnlineSessionRepository.playingLobby,
+    ));
+    await Future<void>.delayed(Duration.zero);
+    cubit.initiateDrawFrom('user-2');
+    repository.drawCardCompleter = Completer();
+
+    final draw = cubit.drawCard(0);
+    repository.addUpdate(const OnlineLobbyUpdated(
+      _FakeOnlineSessionRepository.newerDuringDrawLobby,
+    ));
+    repository.drawCardCompleter!.complete(const Right(
+      _FakeOnlineSessionRepository.drawResponseLobby,
+    ));
+    await Future<void>.delayed(Duration.zero);
+
+    final revealing = cubit.state as OnlineSessionReady;
+    expect(revealing.value.stateVersion, 4);
+    expect(revealing.drawPhase, OnlineDrawPhase.revealingCard);
+    expect(revealing.drawOutcome?.targetUserId, 'user-2');
+    expect(revealing.drawOutcome?.drawnCard.id, 'spades_7');
+    expect(revealing.effect?.type, OnlineSessionEffectType.cardDrawn);
+
+    await draw;
+    expect((cubit.state as OnlineSessionReady).drawPhase, OnlineDrawPhase.idle);
+  });
+
+  test('does not publish shuffle feedback when the command fails', () async {
+    repository.addUpdate(const OnlineLobbyUpdated(
+      _FakeOnlineSessionRepository.playingLobby,
+    ));
+    await Future<void>.delayed(Duration.zero);
+    repository.shuffleResult =
+        const Left(AppFailure('State changed', code: 'stale_state'));
+
+    await cubit.shuffleHand();
+
+    final state = cubit.state as OnlineSessionReady;
+    expect(state.effect, isNull);
+    expect(state.actionErrorCode, 'stale_state');
+  });
+
   test('continues with a connected target when a third player disconnects',
       () async {
     repository.addUpdate(const OnlineLobbyUpdated(
@@ -191,6 +256,7 @@ void main() {
     expect(lobby.isPausedForDisconnectedPlayer, isFalse);
     expect(lobby.canDraw, isTrue);
 
+    cubit.initiateDrawFrom('user-3');
     await cubit.drawCard(0);
 
     expect(repository.drawCardCallCount, 1);
@@ -403,6 +469,108 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
     ],
   );
 
+  static const newerDuringDrawLobby = OnlineLobby(
+    roomCode: 'ABC123',
+    stateVersion: 4,
+    localUserId: 'user-1',
+    phase: OnlineRoomPhase.playing,
+    canStart: false,
+    canStartNewRound: false,
+    currentPlayerUserId: 'user-2',
+    drawFromUserId: 'user-1',
+    roundNumber: 1,
+    lastAction: OnlineGameAction(
+      type: OnlineGameActionType.handShuffled,
+      actorUserId: 'user-2',
+    ),
+    players: [
+      OnlineLobbyPlayer(
+        userId: 'user-1',
+        name: 'Ashraf',
+        avatarId: 'default',
+        isConnected: true,
+        cardCount: 1,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+        hand: [
+          OnlinePlayingCard(
+            id: 'hearts_5',
+            suit: OnlineCardSuit.hearts,
+            rank: 5,
+          ),
+        ],
+      ),
+      OnlineLobbyPlayer(
+        userId: 'user-2',
+        name: 'Guest',
+        avatarId: 'default',
+        isConnected: true,
+        cardCount: 2,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+      ),
+    ],
+  );
+
+  static const drawResponseLobby = OnlineLobby(
+    roomCode: 'ABC123',
+    stateVersion: 3,
+    localUserId: 'user-1',
+    phase: OnlineRoomPhase.playing,
+    canStart: false,
+    canStartNewRound: false,
+    currentPlayerUserId: 'user-2',
+    drawFromUserId: 'user-1',
+    roundNumber: 1,
+    lastAction: OnlineGameAction(
+      type: OnlineGameActionType.cardDrawn,
+      actorUserId: 'user-1',
+      targetUserId: 'user-2',
+      madePair: false,
+      drawnCard: OnlinePlayingCard(
+        id: 'spades_7',
+        suit: OnlineCardSuit.spades,
+        rank: 7,
+      ),
+    ),
+    players: [
+      OnlineLobbyPlayer(
+        userId: 'user-1',
+        name: 'Ashraf',
+        avatarId: 'default',
+        isConnected: true,
+        cardCount: 2,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+        hand: [
+          OnlinePlayingCard(
+            id: 'hearts_5',
+            suit: OnlineCardSuit.hearts,
+            rank: 5,
+          ),
+          OnlinePlayingCard(
+            id: 'spades_7',
+            suit: OnlineCardSuit.spades,
+            rank: 7,
+          ),
+        ],
+      ),
+      OnlineLobbyPlayer(
+        userId: 'user-2',
+        name: 'Guest',
+        avatarId: 'default',
+        isConnected: true,
+        cardCount: 1,
+        score: 0,
+        status: OnlinePlayerStatus.playing,
+        finishPosition: 0,
+      ),
+    ],
+  );
+
   final _updates = StreamController<OnlineSessionUpdate>.broadcast(sync: true);
   int? lastExpectedStateVersion;
   int startGameCallCount = 0;
@@ -413,6 +581,8 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
   int reconnectCallCount = 0;
   int drawCardCallCount = 0;
   String? lastDrawTargetUserId;
+  Completer<FailureOrSuccess<OnlineLobby>>? drawCardCompleter;
+  FailureOrSuccess<OnlineLobby> shuffleResult = const Right(playingLobby);
 
   void addUpdate(OnlineSessionUpdate update) => _updates.add(update);
 
@@ -468,6 +638,7 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
   }) async {
     drawCardCallCount += 1;
     lastDrawTargetUserId = targetUserId;
+    if (drawCardCompleter case final completer?) return completer.future;
     return const Right(playingLobby);
   }
 
@@ -475,7 +646,7 @@ class _FakeOnlineSessionRepository implements OnlineSessionRepository {
   Future<FailureOrSuccess<OnlineLobby>> shuffleHand(
     int expectedStateVersion,
   ) async =>
-      const Right(playingLobby);
+      shuffleResult;
 
   @override
   Future<FailureOrSuccess<OnlineLobby>> startNewRound(

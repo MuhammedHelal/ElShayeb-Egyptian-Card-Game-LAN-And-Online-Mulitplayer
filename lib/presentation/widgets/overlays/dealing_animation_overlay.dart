@@ -25,6 +25,7 @@ class _DealingAnimationOverlayState extends State<DealingAnimationOverlay> {
   final int _totalCards = 49;
   final List<_FlyingCard> _activeCards = [];
   Timer? _dealTimer;
+  Timer? _completionTimer;
   int _cardsDealt = 0;
 
   @override
@@ -39,7 +40,9 @@ class _DealingAnimationOverlayState extends State<DealingAnimationOverlay> {
       if (_cardsDealt >= _totalCards) {
         timer.cancel();
         // Allow last card to land before completing
-        Future.delayed(const Duration(milliseconds: 600), widget.onComplete);
+        _completionTimer = Timer(const Duration(milliseconds: 600), () {
+          if (mounted) widget.onComplete();
+        });
         return;
       }
 
@@ -63,6 +66,7 @@ class _DealingAnimationOverlayState extends State<DealingAnimationOverlay> {
   @override
   void dispose() {
     _dealTimer?.cancel();
+    _completionTimer?.cancel();
     super.dispose();
   }
 

@@ -46,8 +46,15 @@ class GameScreenView extends StatelessWidget {
                   onScoreboardPressed: () => _showScoreboard(context),
                   onRoomCodeTap: () => _copyConnectionInfo(context),
                 ),
-                Expanded(child: content),
-                if (state.localPlayer != null && state.isPlaying)
+                Expanded(
+                  child: AbsorbPointer(
+                    absorbing: state.showDealAnimation,
+                    child: content,
+                  ),
+                ),
+                if (state.localPlayer != null &&
+                    state.isPlaying &&
+                    !state.showDealAnimation)
                   PlayerHandView(
                     state: state,
                     onShuffle: onShuffle,

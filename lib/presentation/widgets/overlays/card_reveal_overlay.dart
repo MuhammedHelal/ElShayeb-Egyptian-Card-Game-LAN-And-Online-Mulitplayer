@@ -79,6 +79,16 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   }
 
   @override
+  void didUpdateWidget(covariant CardRevealOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.showMatch &&
+        widget.showMatch &&
+        widget.matchedCard != null) {
+      _matchController.forward(from: 0);
+    }
+  }
+
+  @override
   void dispose() {
     _revealController.dispose();
     _matchController.dispose();

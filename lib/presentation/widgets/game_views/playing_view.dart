@@ -39,7 +39,9 @@ class PlayingView extends StatelessWidget {
             localPlayerId: state.localPlayerId,
             currentPlayerId: state.currentPlayer?.id,
             drawFromPlayerId: drawFromPlayerId,
-            onPlayerTap: state.isMyTurn && state.drawPhase == DrawPhase.idle
+            onPlayerTap: state.isMyTurn &&
+                    state.drawPhase == DrawPhase.idle &&
+                    !state.showDealAnimation
                 ? onPlayerTap
                 : null,
           ),
