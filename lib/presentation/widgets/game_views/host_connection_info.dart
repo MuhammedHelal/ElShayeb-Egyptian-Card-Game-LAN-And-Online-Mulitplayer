@@ -4,25 +4,24 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../cubit/cubits.dart';
 import '../../theme/app_theme.dart';
 import '../../../core/localization/localization_service.dart';
 
 // Connection info shown to host in lobby
 class HostConnectionInfo extends StatelessWidget {
-  final GameCubit gameCubit;
-  final GameUiState state;
+  final bool isLan;
+  final String connectionInfo;
+  final String roomCode;
 
   const HostConnectionInfo({
     super.key,
-    required this.gameCubit,
-    required this.state,
+    required this.isLan,
+    required this.connectionInfo,
+    required this.roomCode,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isLan = gameCubit.currentMode == GameMode.lan;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -44,7 +43,7 @@ class HostConnectionInfo extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    gameCubit.connectionInfo,
+                    connectionInfo,
                     style: AppTypography.headlineMedium.copyWith(
                       color: AppColors.secondary,
                       fontFamily: 'monospace',
@@ -55,7 +54,7 @@ class HostConnectionInfo extends StatelessWidget {
             ),
           ] else ...[
             Text(
-              state.roomCode,
+              roomCode,
               style: AppTypography.displayMedium.copyWith(
                 color: AppColors.secondary,
                 letterSpacing: 4,
@@ -74,9 +73,7 @@ class HostConnectionInfo extends StatelessWidget {
   }
 
   void _copyConnectionInfo(BuildContext context) {
-    final textToCopy = gameCubit.currentMode == GameMode.lan
-        ? gameCubit.connectionInfo
-        : state.roomCode;
+    final textToCopy = isLan ? connectionInfo : roomCode;
     Clipboard.setData(ClipboardData(text: textToCopy));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

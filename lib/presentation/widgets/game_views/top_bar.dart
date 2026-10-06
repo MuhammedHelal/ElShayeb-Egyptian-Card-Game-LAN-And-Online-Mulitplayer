@@ -3,21 +3,18 @@ library;
 
 import 'package:flutter/material.dart';
 
-import 'package:flutter_bloc/flutter_bloc.dart';
-
-import '../../cubit/cubits.dart';
 import '../../theme/app_theme.dart';
 
 /// Top bar with menu, room code, and scoreboard
 class TopBar extends StatelessWidget {
-  final GameUiState state;
+  final String connectionInfo;
   final VoidCallback onMenuPressed;
   final VoidCallback onScoreboardPressed;
   final VoidCallback onRoomCodeTap;
 
   const TopBar({
     super.key,
-    required this.state,
+    required this.connectionInfo,
     required this.onMenuPressed,
     required this.onScoreboardPressed,
     required this.onRoomCodeTap,
@@ -33,7 +30,7 @@ class TopBar extends StatelessWidget {
             onPressed: onMenuPressed,
             icon: const Icon(Icons.menu),
             style: IconButton.styleFrom(
-              backgroundColor: AppColors.surface.withOpacity(0.5),
+              backgroundColor: AppColors.surface.withValues(alpha: 0.5),
             ),
           ),
           Expanded(
@@ -43,10 +40,10 @@ class TopBar extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.surface.withOpacity(0.8),
+                  color: AppColors.surface.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.secondary.withOpacity(0.3),
+                    color: AppColors.secondary.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Center(
@@ -54,7 +51,7 @@ class TopBar extends StatelessWidget {
                     fit: BoxFit.scaleDown,
                     child: Text(
                       overflow: TextOverflow.ellipsis,
-                      context.read<GameCubit>().connectionInfo,
+                      connectionInfo,
                       style: AppTypography.titleMedium.copyWith(
                         color: AppColors.secondary,
                         fontWeight: FontWeight.bold,
@@ -70,7 +67,7 @@ class TopBar extends StatelessWidget {
             onPressed: onScoreboardPressed,
             icon: const Icon(Icons.leaderboard),
             style: IconButton.styleFrom(
-              backgroundColor: AppColors.surface.withOpacity(0.5),
+              backgroundColor: AppColors.surface.withValues(alpha: 0.5),
             ),
           ),
         ],

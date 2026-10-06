@@ -2,7 +2,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../cubit/cubits.dart';
 
@@ -11,25 +10,26 @@ import '../widgets.dart';
 // Main game view with table, overlays, and player interactions
 class PlayingView extends StatelessWidget {
   final GameUiState state;
+  final String? drawFromPlayerId;
+  final ValueChanged<String>? onPlayerTap;
+  final VoidCallback onDealAnimationComplete;
+  final VoidCallback onStealAnimationComplete;
+  final VoidCallback onCancelCardSelection;
+  final ValueChanged<int> onCardSelected;
 
   const PlayingView({
     super.key,
     required this.state,
+    required this.drawFromPlayerId,
+    required this.onPlayerTap,
+    required this.onDealAnimationComplete,
+    required this.onStealAnimationComplete,
+    required this.onCancelCardSelection,
+    required this.onCardSelected,
   });
 
   @override
   Widget build(BuildContext context) {
-    final gameCubit = context.read<GameCubit>();
-
-    // Find the player we can draw from
-    String? drawFromId;
-    if (state.isMyTurn && state.gameState != null) {
-      final drawFrom = state.gameState!.drawFromPlayer;
-      if (drawFrom != null) {
-        drawFromId = drawFrom.id;
-      }
-    }
-
     return Stack(
       children: [
         // Game table with players
@@ -38,9 +38,9 @@ class PlayingView extends StatelessWidget {
             players: state.players,
             localPlayerId: state.localPlayerId,
             currentPlayerId: state.currentPlayer?.id,
-            drawFromPlayerId: drawFromId,
+            drawFromPlayerId: drawFromPlayerId,
             onPlayerTap: state.isMyTurn && state.drawPhase == DrawPhase.idle
-                ? (playerId) => gameCubit.initiateDrawFrom(playerId)
+                ? onPlayerTap
                 : null,
           ),
         ),
@@ -51,7 +51,7 @@ class PlayingView extends StatelessWidget {
             child: DealingAnimationOverlay(
               players: state.players,
               localPlayerId: state.localPlayerId,
-              onComplete: () => gameCubit.onDealAnimationComplete(),
+              onComplete: onDealAnimationComplete,
             ),
           ),
 
@@ -66,7 +66,7 @@ class PlayingView extends StatelessWidget {
                 victimId: state.pendingCardStealEvent!.victimId,
                 timestamp: state.pendingCardStealEvent!.timestamp,
               ),
-              onComplete: () => gameCubit.onStealAnimationComplete(),
+              onComplete: onStealAnimationComplete,
             ),
           ),
 
@@ -84,8 +84,8 @@ class PlayingView extends StatelessWidget {
             state.drawTargetPlayer != null)
           CardSelectionOverlay(
             targetPlayer: state.drawTargetPlayer!,
-            onCancel: () => gameCubit.cancelCardSelection(),
-            onCardSelected: (index) => gameCubit.selectCardToDraw(index),
+            onCancel: onCancelCardSelection,
+            onCardSelected: onCardSelected,
           ),
 
         // Card Reveal Overlay

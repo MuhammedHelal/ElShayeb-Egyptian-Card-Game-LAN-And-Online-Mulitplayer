@@ -1,19 +1,33 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/localization/localization_service.dart';
+import '../../../../core/audio_manager.dart';
+import '../../../../core/haptic_manager.dart';
 import '../../../../core/widgets/app_resume_listener.dart';
+import '../../../../domain/entities/entities.dart';
+import '../../../../presentation/cubit/game/game_cubit.dart';
 import '../../../../presentation/cubit/settings/settings_cubit.dart';
 import '../../../../presentation/theme/app_theme.dart';
+import '../../../../presentation/widgets/widgets.dart';
 import '../../domain/entities/online_lobby.dart';
 import '../cubit/online_session_cubit.dart';
 import '../cubit/online_session_state.dart';
 import '../widgets/online_game_widgets.dart';
 
 class OnlineGameScreen extends StatefulWidget {
-  const OnlineGameScreen({super.key});
+  final AudioManager audioManager;
+  final HapticManager hapticManager;
+
+  const OnlineGameScreen({
+    super.key,
+    required this.audioManager,
+    required this.hapticManager,
+  });
 
   @override
   State<OnlineGameScreen> createState() => _OnlineGameScreenState();
@@ -24,6 +38,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
   late final TabController _tabController;
   late final TextEditingController _nameController;
   late final TextEditingController _roomCodeController;
+  bool _createdRoom = false;
+  OnlineRoomPhase? _lastRoomPhase;
+  OnlinePlayerStatus? _lastLocalPlayerStatus;
+  int? _lastHandledStateVersion;
+  DrawPhase _drawPhase = DrawPhase.idle;
+  DrawActionInfo? _drawAction;
+  CardStealEventInfo? _pendingCardStealEvent;
+  bool _showDealAnimation = false;
+  int? _selectedCardIndex;
 
   @override
   void initState() {
@@ -50,69 +73,122 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     return AppResumeListener(
       onInitial: cubit.restoreSession,
       onResume: cubit.onAppResumed,
-      child: BlocBuilder<OnlineSessionCubit, OnlineSessionState>(
-        builder: (context, state) => Scaffold(
-          appBar: state is OnlineSessionReady
-              ? AppBar(
-                  title: Text(
-                    'online_room_title'.tr(
-                      namedArgs: {'code': state.value.roomCode},
-                    ),
-                  ),
-                  actions: [
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(end: 8),
-                      child: Center(
-                        child: OnlineConnectionChip(
-                          status: state.connectionStatus,
-                          onReconnect: state.connectionStatus ==
-                                  OnlineServerConnectionStatus.connected
-                              ? null
-                              : context.read<OnlineSessionCubit>().reconnect,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'online_leave_room'.tr(),
-                      onPressed: () => _confirmLeave(context),
-                      icon: const Icon(Icons.logout),
-                    ),
-                  ],
-                )
-              : null,
-          body: Container(
-            decoration: const BoxDecoration(gradient: AppColors.tableGradient),
-            child: SafeArea(
-              top: state is! OnlineSessionReady,
-              child: switch (state) {
-                OnlineSessionInitial() => _RoomEntryView(
-                    tabController: _tabController,
-                    nameController: _nameController,
-                    roomCodeController: _roomCodeController,
-                    onCreate: () => _createRoom(context),
-                    onJoin: () => _joinRoom(context),
-                  ),
-                OnlineSessionLoading() => _RoomEntryView(
-                    tabController: _tabController,
-                    nameController: _nameController,
-                    roomCodeController: _roomCodeController,
-                    isLoading: true,
-                    onCreate: () => _createRoom(context),
-                    onJoin: () => _joinRoom(context),
-                  ),
-                OnlineSessionFailure(:final code) => _RoomEntryView(
-                    tabController: _tabController,
-                    nameController: _nameController,
-                    roomCodeController: _roomCodeController,
-                    errorMessage: _onlineErrorTranslationKey(code).tr(),
-                    onCreate: () => _createRoom(context),
-                    onJoin: () => _joinRoom(context),
-                  ),
-                OnlineSessionReady() => _ReadyRoomView(state: state),
-              },
-            ),
-          ),
+      child: BlocConsumer<OnlineSessionCubit, OnlineSessionState>(
+        listener: _handleSessionState,
+        builder: (context, state) => state is OnlineSessionReady
+            ? _buildGame(context, state)
+            : _buildRoomEntry(context, state),
+      ),
+    );
+  }
+
+  Widget _buildRoomEntry(BuildContext context, OnlineSessionState state) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.tableGradient),
+        child: SafeArea(
+          child: switch (state) {
+            OnlineSessionInitial() => _RoomEntryView(
+                tabController: _tabController,
+                nameController: _nameController,
+                roomCodeController: _roomCodeController,
+                onCreate: () => _createRoom(context),
+                onJoin: () => _joinRoom(context),
+              ),
+            OnlineSessionLoading() => _RoomEntryView(
+                tabController: _tabController,
+                nameController: _nameController,
+                roomCodeController: _roomCodeController,
+                isLoading: true,
+                onCreate: () => _createRoom(context),
+                onJoin: () => _joinRoom(context),
+              ),
+            OnlineSessionFailure(:final code) => _RoomEntryView(
+                tabController: _tabController,
+                nameController: _nameController,
+                roomCodeController: _roomCodeController,
+                errorMessage: _onlineErrorTranslationKey(code).tr(),
+                onCreate: () => _createRoom(context),
+                onJoin: () => _joinRoom(context),
+              ),
+            OnlineSessionReady() => const SizedBox.shrink(),
+          },
         ),
+      ),
+    );
+  }
+
+  Widget _buildGame(BuildContext context, OnlineSessionReady session) {
+    final lobby = session.value;
+    final isUnavailable = session.isActionInFlight ||
+        session.connectionStatus != OnlineServerConnectionStatus.connected;
+    final canManageLobby = _createdRoom || lobby.canStart;
+    final uiState = _toGameUiState(lobby, isHost: canManageLobby);
+    final cubit = context.read<OnlineSessionCubit>();
+
+    return GameScreenView(
+      state: uiState,
+      connectionInfo: lobby.roomCode,
+      onLeave: cubit.leaveRoom,
+      onShuffle: isUnavailable ? null : () => _shuffleHand(cubit),
+      onCardTap: isUnavailable ? null : (index) => _selectHandCard(index),
+      content: Stack(
+        children: [
+          Positioned.fill(
+            child: switch (lobby.phase) {
+              OnlineRoomPhase.lobby => LobbyView(
+                  state: uiState,
+                  connectionInfo: HostConnectionInfo(
+                    isLan: false,
+                    connectionInfo: lobby.roomCode,
+                    roomCode: lobby.roomCode,
+                  ),
+                  onStartGame:
+                      canManageLobby && !isUnavailable ? cubit.startGame : null,
+                ),
+              OnlineRoomPhase.playing => PlayingView(
+                  state: uiState,
+                  drawFromPlayerId: lobby.canDraw ? lobby.drawFromUserId : null,
+                  onPlayerTap: isUnavailable
+                      ? null
+                      : (playerId) => _startCardSelection(lobby, playerId),
+                  onDealAnimationComplete: () =>
+                      setState(() => _showDealAnimation = false),
+                  onStealAnimationComplete: () =>
+                      setState(() => _pendingCardStealEvent = null),
+                  onCancelCardSelection: _cancelCardSelection,
+                  onCardSelected: (index) => _selectOnlineCard(lobby, index),
+                ),
+              OnlineRoomPhase.roundEnd => RoundEndView(
+                  state: uiState,
+                  onStartNewRound: lobby.canStartNewRound && !isUnavailable
+                      ? () => _startNewRound(cubit)
+                      : null,
+                ),
+            },
+          ),
+          if (session.actionErrorMessage != null)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: OnlineActionErrorBanner(
+                message:
+                    _onlineErrorTranslationKey(session.actionErrorCode).tr(),
+              ),
+            ),
+          if (session.connectionStatus !=
+              OnlineServerConnectionStatus.connected)
+            Positioned(
+              top: session.actionErrorMessage == null ? 0 : 56,
+              left: 0,
+              right: 0,
+              child: _ConnectionNotice(
+                status: session.connectionStatus,
+                onReconnect: cubit.reconnect,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -123,6 +199,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
       _showMessage(context, 'online_error_name'.tr());
       return;
     }
+    _createdRoom = true;
     context.read<OnlineSessionCubit>().createRoom(
           playerName: name,
           avatarId: context.read<SettingsCubit>().state.avatarId,
@@ -136,6 +213,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
       _showMessage(context, 'online_error_join_fields'.tr());
       return;
     }
+    _createdRoom = false;
     context.read<OnlineSessionCubit>().joinRoom(
           roomCode: roomCode,
           playerName: name,
@@ -143,86 +221,304 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
         );
   }
 
-  Future<void> _confirmLeave(BuildContext context) async {
-    final shouldLeave = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('game_leave_title'.tr()),
-        content: Text('game_leave_message'.tr()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text('game_cancel'.tr()),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text('game_leave'.tr()),
-          ),
-        ],
-      ),
-    );
-    if (shouldLeave == true && context.mounted) {
-      await context.read<OnlineSessionCubit>().leaveRoom();
-    }
-  }
-
   void _showMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
+
+  void _handleSessionState(BuildContext context, OnlineSessionState state) {
+    if (state is! OnlineSessionReady) {
+      _lastRoomPhase = null;
+      _lastLocalPlayerStatus = null;
+      _lastHandledStateVersion = null;
+      return;
+    }
+
+    final lobby = state.value;
+    final previousPhase = _lastRoomPhase;
+    final previousLocalStatus = _lastLocalPlayerStatus;
+    final shouldDeal = _lastRoomPhase == OnlineRoomPhase.lobby &&
+        lobby.phase == OnlineRoomPhase.playing;
+    final shouldFinishRound = previousPhase == OnlineRoomPhase.playing &&
+        lobby.phase == OnlineRoomPhase.roundEnd;
+    final localStatus = lobby.localPlayer?.status;
+    final shouldCelebrateFinish = !shouldFinishRound &&
+        previousLocalStatus == OnlinePlayerStatus.playing &&
+        localStatus == OnlinePlayerStatus.finished;
+    final action = lobby.lastAction;
+    final shouldAnimateSteal = _lastHandledStateVersion != null &&
+        _lastHandledStateVersion != lobby.stateVersion &&
+        action?.type == OnlineGameActionType.cardDrawn &&
+        action?.actorUserId != lobby.localUserId &&
+        action?.targetUserId != null;
+
+    _lastRoomPhase = lobby.phase;
+    _lastLocalPlayerStatus = localStatus;
+    _lastHandledStateVersion = lobby.stateVersion;
+
+    if (shouldDeal) {
+      unawaited(widget.audioManager.playSoundEffect(SoundEffect.deal));
+      unawaited(widget.hapticManager.cardDraw());
+    }
+    if (shouldFinishRound) {
+      final didLose = localStatus == OnlinePlayerStatus.shayeb;
+      unawaited(widget.audioManager.playSoundEffect(
+        didLose ? SoundEffect.lose : SoundEffect.win,
+      ));
+      unawaited(
+        didLose
+            ? widget.hapticManager.defeat()
+            : widget.hapticManager.victory(),
+      );
+    } else if (shouldCelebrateFinish) {
+      unawaited(widget.audioManager.playSoundEffect(SoundEffect.win));
+      unawaited(widget.hapticManager.victory());
+    }
+
+    if (shouldDeal || shouldAnimateSteal) {
+      setState(() {
+        if (shouldDeal) _showDealAnimation = true;
+        if (shouldAnimateSteal) {
+          _pendingCardStealEvent = CardStealEventInfo(
+            stealerId: action!.actorUserId,
+            victimId: action.targetUserId!,
+            timestamp: DateTime.now(),
+          );
+        }
+      });
+    }
+  }
+
+  void _startCardSelection(OnlineLobby lobby, String playerId) {
+    if (!lobby.canDraw || lobby.drawFromUserId != playerId) return;
+    unawaited(widget.hapticManager.cardTap());
+    setState(() {
+      _drawPhase = DrawPhase.selectingCard;
+      _drawAction = DrawActionInfo(targetPlayerId: playerId);
+    });
+  }
+
+  void _cancelCardSelection() {
+    setState(() {
+      _drawPhase = DrawPhase.idle;
+      _drawAction = null;
+    });
+  }
+
+  Future<void> _selectOnlineCard(OnlineLobby lobby, int cardIndex) async {
+    final target = lobby.drawFromPlayer;
+    if (_drawPhase != DrawPhase.selectingCard ||
+        target == null ||
+        cardIndex < 0 ||
+        cardIndex >= target.cardCount) {
+      return;
+    }
+
+    final previousHand = lobby.localPlayer?.hand ?? const <OnlinePlayingCard>[];
+    setState(() => _drawPhase = DrawPhase.completing);
+    await context.read<OnlineSessionCubit>().drawCard(cardIndex);
+    if (!mounted) return;
+
+    final latestState = context.read<OnlineSessionCubit>().state;
+    final latestLobby =
+        latestState is OnlineSessionReady ? latestState.value : null;
+    final action = latestLobby?.lastAction;
+    if (latestLobby == null ||
+        latestLobby.stateVersion <= lobby.stateVersion ||
+        action?.type != OnlineGameActionType.cardDrawn ||
+        action?.actorUserId != lobby.localUserId ||
+        action?.targetUserId != target.userId ||
+        action?.drawnCard == null) {
+      _cancelCardSelection();
+      return;
+    }
+
+    final drawnCard = _toPlayingCard(action!.drawnCard!);
+    unawaited(widget.audioManager.playSoundEffect(SoundEffect.flip));
+    unawaited(widget.hapticManager.cardDraw());
+    PlayingCard? matchedCard;
+    if (action.madePair == true) {
+      for (final card in previousHand) {
+        if (card.rank == action.drawnCard!.rank) {
+          matchedCard = _toPlayingCard(card);
+          break;
+        }
+      }
+    }
+
+    setState(() {
+      _drawPhase = DrawPhase.revealingCard;
+      _drawAction = DrawActionInfo(
+        targetPlayerId: target.userId,
+        selectedCardIndex: cardIndex,
+        drawnCard: drawnCard,
+        matchedCard: matchedCard,
+        madeMatch: matchedCard != null,
+      );
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return;
+
+    if (matchedCard != null) {
+      setState(() => _drawPhase = DrawPhase.showingMatch);
+      unawaited(widget.audioManager.playSoundEffect(SoundEffect.match));
+      unawaited(widget.hapticManager.matchFound());
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+    }
+    _cancelCardSelection();
+  }
+
+  void _selectHandCard(int index) {
+    setState(() => _selectedCardIndex = index);
+    unawaited(widget.hapticManager.cardTap());
+  }
+
+  Future<void> _shuffleHand(OnlineSessionCubit cubit) async {
+    await cubit.shuffleHand();
+    if (mounted) unawaited(widget.hapticManager.cardTap());
+  }
+
+  Future<void> _startNewRound(OnlineSessionCubit cubit) async {
+    await cubit.startNewRound();
+    if (mounted) {
+      unawaited(widget.audioManager.playSoundEffect(SoundEffect.deal));
+    }
+  }
+
+  GameUiState _toGameUiState(OnlineLobby lobby, {required bool isHost}) {
+    final players = lobby.players
+        .map((player) => _toPlayer(player, lobby.localUserId, isHost))
+        .toList(growable: false);
+    final currentPlayerIndex = players.indexWhere(
+      (player) => player.id == lobby.currentPlayerUserId,
+    );
+    final gameState = GameState(
+      roomId: lobby.roomCode,
+      roomCode: lobby.roomCode,
+      players: players,
+      currentPlayerIndex: currentPlayerIndex < 0 ? 0 : currentPlayerIndex,
+      phase: switch (lobby.phase) {
+        OnlineRoomPhase.lobby => GamePhase.lobby,
+        OnlineRoomPhase.playing => GamePhase.playing,
+        OnlineRoomPhase.roundEnd => GamePhase.roundEnd,
+      },
+      roundNumber: lobby.roundNumber,
+      hostId: isHost ? lobby.localUserId : '',
+    );
+    return GameUiState(
+      gameState: gameState,
+      status: LoadingStatus.success,
+      localPlayerId: lobby.localUserId,
+      isHost: isHost,
+      isReconnecting: false,
+      lastEventMessage: _onlineActionMessage(lobby),
+      selectedCardIndex: _selectedCardIndex,
+      drawPhase: _drawPhase,
+      currentDrawAction: _drawAction,
+      showDealAnimation: _showDealAnimation,
+      pendingCardStealEvent: _pendingCardStealEvent,
+    );
+  }
 }
 
-class _ReadyRoomView extends StatelessWidget {
-  final OnlineSessionReady state;
+Player _toPlayer(
+  OnlineLobbyPlayer player,
+  String localUserId,
+  bool isHost,
+) {
+  final visibleHand = player.hand;
+  final hand = visibleHand != null
+      ? visibleHand.map(_toPlayingCard).toList(growable: false)
+      : List<PlayingCard>.generate(
+          player.cardCount,
+          (index) => PlayingCard(
+            id: 'hidden_${player.userId}_$index',
+            suit: Suit.spades,
+            rank: Rank.ace,
+          ),
+          growable: false,
+        );
+  return Player(
+    id: player.userId,
+    name: player.name,
+    avatarId: player.avatarId,
+    hand: hand,
+    score: player.score,
+    status: switch (player.status) {
+      OnlinePlayerStatus.playing => PlayerStatus.playing,
+      OnlinePlayerStatus.finished => PlayerStatus.finished,
+      OnlinePlayerStatus.shayeb => PlayerStatus.shayeb,
+    },
+    finishPosition: player.finishPosition,
+    isHost: isHost && player.userId == localUserId,
+    isConnected: player.isConnected,
+  );
+}
 
-  const _ReadyRoomView({required this.state});
+PlayingCard _toPlayingCard(OnlinePlayingCard card) {
+  return PlayingCard(
+    id: card.id,
+    suit: switch (card.suit) {
+      OnlineCardSuit.hearts => Suit.hearts,
+      OnlineCardSuit.diamonds => Suit.diamonds,
+      OnlineCardSuit.clubs => Suit.clubs,
+      OnlineCardSuit.spades => Suit.spades,
+    },
+    rank: Rank.values[card.rank - 1],
+  );
+}
+
+String? _onlineActionMessage(OnlineLobby lobby) {
+  final action = lobby.lastAction;
+  if (action == null) return null;
+  OnlineLobbyPlayer? actor;
+  for (final player in lobby.players) {
+    if (player.userId == action.actorUserId) {
+      actor = player;
+      break;
+    }
+  }
+  final actorName = action.actorName ?? actor?.name ?? 'online_player'.tr();
+  return switch (action.type) {
+    OnlineGameActionType.gameStarted => 'event_game_started'.tr(),
+    OnlineGameActionType.roundStarted => 'event_new_round_started'.tr(),
+    OnlineGameActionType.handShuffled =>
+      'event_player_shuffled'.tr(namedArgs: {'name': actorName}),
+    OnlineGameActionType.playerLeft =>
+      'online_player_left_disconnected'.tr(namedArgs: {'name': actorName}),
+    OnlineGameActionType.cardDrawn =>
+      action.actorUserId == lobby.localUserId && action.drawnCard != null
+          ? (action.madePair == true
+              ? 'online_you_drew_pair'.tr(
+                  namedArgs: {'card': action.drawnCard!.label},
+                )
+              : 'online_you_drew_card'.tr(
+                  namedArgs: {'card': action.drawnCard!.label},
+                ))
+          : 'event_player_drew_card'.tr(namedArgs: {'name': actorName}),
+  };
+}
+
+class _ConnectionNotice extends StatelessWidget {
+  final OnlineServerConnectionStatus status;
+  final VoidCallback onReconnect;
+
+  const _ConnectionNotice({
+    required this.status,
+    required this.onReconnect,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<OnlineSessionCubit>();
-    final isUnavailable = state.isActionInFlight ||
-        state.connectionStatus != OnlineServerConnectionStatus.connected;
-    return Column(
-      children: [
-        if (state.actionErrorMessage != null)
-          OnlineActionErrorBanner(
-            message: _onlineErrorTranslationKey(state.actionErrorCode).tr(),
-          ),
-        if (state.connectionStatus == OnlineServerConnectionStatus.reconnecting)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              'online_reconnecting_notice'.tr(),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        Expanded(
-          child: switch (state.value.phase) {
-            OnlineRoomPhase.lobby => OnlineLobbyView(
-                lobby: state.value,
-                isActionInFlight: isUnavailable,
-                onStartGame: cubit.startGame,
-              ),
-            OnlineRoomPhase.playing => OnlinePlayingView(
-                lobby: state.value,
-                isActionInFlight: isUnavailable,
-                onDrawCard: cubit.drawCard,
-                onShuffle: cubit.shuffleHand,
-              ),
-            OnlineRoomPhase.roundEnd => OnlineRoundEndView(
-                lobby: state.value,
-                isActionInFlight: isUnavailable,
-                onStartNewRound: cubit.startNewRound,
-              ),
-          },
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: OnlineConnectionChip(
+          status: status,
+          onReconnect: onReconnect,
         ),
-      ],
+      ),
     );
   }
 }

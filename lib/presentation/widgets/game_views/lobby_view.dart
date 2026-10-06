@@ -2,7 +2,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../cubit/cubits.dart';
 import '../../theme/app_theme.dart';
@@ -12,16 +11,18 @@ import '../widgets.dart';
 // Waiting for players before game starts
 class LobbyView extends StatelessWidget {
   final GameUiState state;
+  final Widget? connectionInfo;
+  final VoidCallback? onStartGame;
 
   const LobbyView({
     super.key,
     required this.state,
+    required this.connectionInfo,
+    required this.onStartGame,
   });
 
   @override
   Widget build(BuildContext context) {
-    final gameCubit = context.read<GameCubit>();
-
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -30,10 +31,10 @@ class LobbyView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.surface.withOpacity(0.9),
+              color: AppColors.surface.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.secondary.withOpacity(0.3),
+                color: AppColors.secondary.withValues(alpha: 0.3),
                 width: 2,
               ),
             ),
@@ -64,15 +65,14 @@ class LobbyView extends StatelessWidget {
                   }).toList(),
                 ),
                 const SizedBox(height: 24),
-                if (state.isHost) ...[
-                  HostConnectionInfo(
-                    gameCubit: gameCubit,
-                    state: state,
-                  ),
+                if (connectionInfo != null) ...[
+                  connectionInfo!,
+                ],
+                if (onStartGame != null) ...[
                   const SizedBox(height: 24),
                   if (state.gameState?.canStart == true)
                     ElevatedButton.icon(
-                      onPressed: () => gameCubit.startGame(),
+                      onPressed: onStartGame,
                       icon: const Icon(Icons.play_arrow),
                       label: Text(AppStrings.gameStart),
                       style: ElevatedButton.styleFrom(

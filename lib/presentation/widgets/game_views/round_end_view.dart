@@ -2,7 +2,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../cubit/cubits.dart';
 import '../../../core/localization/localization_service.dart';
@@ -11,10 +10,12 @@ import '../widgets.dart';
 // Round/game end scoreboard view
 class RoundEndView extends StatelessWidget {
   final GameUiState state;
+  final VoidCallback? onStartNewRound;
 
   const RoundEndView({
     super.key,
     required this.state,
+    required this.onStartNewRound,
   });
 
   @override
@@ -30,9 +31,9 @@ class RoundEndView extends StatelessWidget {
             showRoundResults: true,
           ),
           const SizedBox(height: 24),
-          if (state.isHost)
+          if (onStartNewRound != null)
             ElevatedButton.icon(
-              onPressed: () => context.read<GameCubit>().startNewRound(),
+              onPressed: onStartNewRound,
               icon: const Icon(Icons.refresh),
               label: Text(AppStrings.gameNewRound),
               style: ElevatedButton.styleFrom(

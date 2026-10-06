@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'injection_container.dart';
+import 'core/audio_manager.dart';
 import 'core/constants/app_consts.dart';
+import 'core/haptic_manager.dart';
 import 'features/online_session/online_session.dart';
 import 'presentation/presentation.dart';
 
@@ -48,7 +50,10 @@ class ElShayebApp extends StatelessWidget {
           '/settings': (_) => const SettingsScreen(),
           '/online-game': (_) => BlocProvider<OnlineSessionCubit>(
                 create: (_) => getIt<OnlineSessionCubit>(),
-                child: const OnlineGameScreen(),
+                child: OnlineGameScreen(
+                  audioManager: getIt<AudioManager>(),
+                  hapticManager: getIt<HapticManager>(),
+                ),
               ),
           if (AppConsts.onlineDiagnosticsEnabled)
             '/online-diagnostics': (_) => BlocProvider<OnlineSessionCubit>(

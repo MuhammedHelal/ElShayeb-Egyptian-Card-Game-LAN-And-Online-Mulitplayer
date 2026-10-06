@@ -2,7 +2,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../cubit/cubits.dart';
 import '../../theme/app_theme.dart';
@@ -12,10 +11,14 @@ import '../widgets.dart';
 // Player's hand at bottom of screen
 class PlayerHandView extends StatelessWidget {
   final GameUiState state;
+  final VoidCallback? onShuffle;
+  final ValueChanged<int>? onCardTap;
 
   const PlayerHandView({
     super.key,
     required this.state,
+    required this.onShuffle,
+    required this.onCardTap,
   });
 
   @override
@@ -30,7 +33,7 @@ class PlayerHandView extends StatelessWidget {
         children: [
           if (localPlayer.isPlaying && localPlayer.hand.length > 1)
             TextButton.icon(
-              onPressed: () => context.read<GameCubit>().shuffleHand(),
+              onPressed: onShuffle,
               icon: const Icon(Icons.shuffle,
                   size: 16, color: AppColors.secondary),
               label: Text(
@@ -39,7 +42,7 @@ class PlayerHandView extends StatelessWidget {
                     .copyWith(color: AppColors.secondary),
               ),
               style: TextButton.styleFrom(
-                backgroundColor: AppColors.surface.withOpacity(0.3),
+                backgroundColor: AppColors.surface.withValues(alpha: 0.3),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -49,8 +52,10 @@ class PlayerHandView extends StatelessWidget {
             cards: localPlayer.hand,
             selectedIndex: state.selectedCardIndex,
             matchedCardIds: state.matchedCardIds,
-            isInteractive: state.isMyTurn && state.drawPhase == DrawPhase.idle,
-            onCardTap: (index) => context.read<GameCubit>().selectCard(index),
+            isInteractive: onCardTap != null &&
+                state.isMyTurn &&
+                state.drawPhase == DrawPhase.idle,
+            onCardTap: onCardTap,
             maxWidth: MediaQuery.of(context).size.width - 32,
           ),
         ],

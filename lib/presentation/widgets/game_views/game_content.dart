@@ -21,7 +21,18 @@ class GameContent extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (state.phase) {
       case GamePhase.lobby:
-        return LobbyView(state: state);
+        final gameCubit = context.read<GameCubit>();
+        return LobbyView(
+          state: state,
+          connectionInfo: state.isHost
+              ? HostConnectionInfo(
+                  isLan: gameCubit.currentMode == GameMode.lan,
+                  connectionInfo: gameCubit.connectionInfo,
+                  roomCode: state.roomCode,
+                )
+              : null,
+          onStartGame: state.isHost ? gameCubit.startGame : null,
+        );
       case GamePhase.dealing:
         return DealingAnimationOverlay(
           players: state.players,
@@ -29,10 +40,25 @@ class GameContent extends StatelessWidget {
           onComplete: () => context.read<GameCubit>().onDealAnimationComplete(),
         );
       case GamePhase.playing:
-        return PlayingView(state: state);
+        final gameCubit = context.read<GameCubit>();
+        final drawFromPlayerId =
+            state.isMyTurn ? state.gameState?.drawFromPlayer?.id : null;
+        return PlayingView(
+          state: state,
+          drawFromPlayerId: drawFromPlayerId,
+          onPlayerTap: gameCubit.initiateDrawFrom,
+          onDealAnimationComplete: gameCubit.onDealAnimationComplete,
+          onStealAnimationComplete: gameCubit.onStealAnimationComplete,
+          onCancelCardSelection: gameCubit.cancelCardSelection,
+          onCardSelected: gameCubit.selectCardToDraw,
+        );
       case GamePhase.roundEnd:
       case GamePhase.gameEnd:
-        return RoundEndView(state: state);
+        return RoundEndView(
+          state: state,
+          onStartNewRound:
+              state.isHost ? context.read<GameCubit>().startNewRound : null,
+        );
     }
   }
 }
