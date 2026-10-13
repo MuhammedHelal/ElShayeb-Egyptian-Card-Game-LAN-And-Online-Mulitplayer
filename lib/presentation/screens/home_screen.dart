@@ -238,16 +238,6 @@ class _HomeScreenState extends State<HomeScreen>
 
                   const Spacer(),
 
-                  // Version info
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      AppStrings.version,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.textSecondary.withOpacity(0.5),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ],

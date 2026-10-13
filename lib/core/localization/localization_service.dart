@@ -38,7 +38,6 @@ abstract class AppStrings {
   // App
   static String get appName => 'app_name'.tr();
   static String get appSubtitle => 'app_subtitle'.tr();
-  static String get version => 'version'.tr();
 
   // Mode selection
   static String get modeLocalWifi => 'mode_local_wifi'.tr();
@@ -123,7 +122,6 @@ abstract class AppStrings {
   static String get settingsVibration => 'settings_vibration'.tr();
   static String get settingsVibrationDesc => 'settings_vibration_desc'.tr();
   static String get settingsPlayerName => 'settings_player_name'.tr();
-  static String get settingsVersion => 'settings_version'.tr();
   static String get settingsGameRules => 'settings_game_rules'.tr();
 
   // Rules

@@ -194,7 +194,6 @@ class SettingsScreen extends StatelessWidget {
                                 ),
                               ),
                               title: Text(AppStrings.appName),
-                              subtitle: Text(AppStrings.settingsVersion),
                             ),
                             const Divider(),
                             ListTile(
